@@ -91,6 +91,16 @@ let filter_with_discarded_addrs f_keep memory =
     memory (memory, [])
 
 
+let get_stack_var_triples attrs_map =
+  fold
+    (fun addr attrs acc ->
+      let res = Attributes.get_address_of_stack_variable attrs in
+      match res with
+      | None -> acc
+      | Some (var, _, history) -> (var, addr, history) :: acc
+      )
+    attrs_map []
+
 let pp = Graph.pp
 
 let invalidate (address, history) invalidation location memory =
@@ -167,6 +177,8 @@ let initialize address attrs =
     remove_one address Attribute.Uninitialized attrs
   else attrs
 
+
+(* let get_stack_addresses attrs = Attributes.get_address_of_stack_variable attrs *)
 
 let get_allocation = get_attribute Attributes.get_allocation
 

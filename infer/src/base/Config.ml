@@ -186,6 +186,8 @@ let property_attributes = "property_attributes"
     inconsistencies *)
 let report_nullable_inconsistency = true
 
+let pulse_is_repairing = ref false
+
 (** If true, compact summaries before saving *)
 let save_compact_summaries = true
 

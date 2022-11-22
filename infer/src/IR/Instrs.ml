@@ -24,6 +24,10 @@ module RevArray : sig
   val fold : ('a t, 'a, 'accum) Container.fold
 
   val foldi : 'a t -> init:'accum -> f:(int -> 'accum -> 'a -> 'accum) -> 'accum
+
+  val of_list : 'a list -> 'a t
+
+  val to_list : 'a t -> 'a list
 end = struct
   type 'a t = 'a Array.t
 
@@ -47,6 +51,10 @@ end = struct
     Array.fold_right a ~init ~f:(fun elt acc ->
         decr idx ;
         f !idx acc elt )
+
+  let of_list a = Array.of_list a
+
+  let to_list a = Array.to_list a
 end
 
 type reversed
@@ -94,7 +102,6 @@ let copy = function
 let append_list t list =
   let instrs = get_underlying_not_reversed t in
   NotReversed (Array.append instrs (Array.of_list list))
-
 
 let of_list l = NotReversed (Array.of_list l)
 
@@ -161,6 +168,18 @@ let reverse_order t =
 
 
 (* Functions on both reversed and non-reversed arrays *)
+
+(* let prepend_instr t ins =
+  match t with
+  | NotReversed instrs ->
+      NotReversed (Array.of_list (ins :: (Array.to_list instrs)))
+  | Reversed rev_instrs ->
+      Reversed (RevArray.of_list ((RevArray.to_list rev_instrs)@[ins]))
+  | Empty ->
+      NotReversed (Array.of_list [ins])
+  | Singleton old_ins ->
+      NotReversed (Array.of_list [ins;old_ins]) *)
+
 
 let is_empty (type r) (t : r t) =
   match t with

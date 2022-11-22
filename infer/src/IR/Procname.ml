@@ -1028,11 +1028,11 @@ let rec pp fmt = function
   | CSharp cs ->
       CSharp.pp Non_verbose fmt cs
   | C osig ->
-      C.pp Non_verbose fmt osig
+      C.pp Verbose fmt osig
   | Erlang e ->
       Erlang.pp Non_verbose fmt e
   | ObjC_Cpp osig ->
-      ObjC_Cpp.pp Non_verbose fmt osig
+      ObjC_Cpp.pp Verbose fmt osig
   | Block bsig ->
       Block.pp Non_verbose fmt bsig
   | WithAliasingParameters (base, []) | WithBlockParameters (base, []) ->

@@ -60,8 +60,10 @@ let canonicalize ~get_var_repr stack =
 let subst_var (v, v') stack =
   canonicalize stack ~get_var_repr:(fun addr -> if AbstractValue.equal v addr then v' else addr)
 
-
 include M
+
+let get_as_triple map = 
+  M.fold (fun var (addr, history) acc -> (var, addr, history)::acc) map []
 
 let compare = M.compare AddrHistPair.compare
 

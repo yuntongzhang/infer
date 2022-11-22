@@ -113,6 +113,7 @@ module type NodeTransferFunctions = sig
     -> Domain.t
   (** specifies how to symbolically execute the instructions of a node, using [exec_instr] to go
       over a single instruction *)
+  val is_pulse : bool
 end
 
 (** most transfer functions will use this simple [Instrs.fold] approach *)
@@ -130,6 +131,8 @@ module SimpleNodeTransferFunctions (T : TransferFunctions.SIL) = struct
 
   let exec_node_instrs _old_state_opt ~exec_instr pre instrs =
     Instrs.foldi ~init:pre instrs ~f:exec_instr
+
+  let is_pulse = false
 end
 
 module BackwardNodeTransferFunction (T : TransferFunctionsWithExceptions) = struct
@@ -150,6 +153,8 @@ module BackwardNodeTransferFunction (T : TransferFunctionsWithExceptions) = stru
     let pre_exn = filter_exceptional pre in
     let f idx astate instr = exec_instr idx (Domain.join astate pre_exn) instr in
     Instrs.foldi ~init:pre instrs ~f
+
+  let is_pulse = false
 end
 
 (** build a disjunctive domain and transfer functions *)
@@ -272,6 +277,7 @@ struct
        already recorded in the post of a node (and therefore that will stay there).  It is always
        set from [exec_node_instrs], so [remaining_disjuncts] should always be [Some _]. *)
     let limit = Option.value_exn (AnalysisState.get_remaining_disjuncts ()) in
+    L.debug_dev "   instr is : %a : \n" (Sil.pp_instr ~print_types:false Pp.text) instr ;
     let (disjuncts, non_disj_astates), _ =
       List.foldi (List.rev pre_disjuncts)
         ~init:(([], []), 0)
@@ -295,6 +301,10 @@ struct
 
 
   let exec_node_instrs old_state_opt ~exec_instr (pre, pre_non_disj) instrs =
+    (* let node_location = CFG.Node.get_loc node in
+    L.debug_dev "Disjunctive exec_node_instr: %a" Location.pp node_location ; *)
+    L.debug_dev "Disjunctive exec_node_instr\n";
+    (* L.debug_dev "Hahahah %a \n" (Sil.pp_instr ~print_types:false Pp.text) instrs ; *)
     let is_new_pre disjunct =
       match old_state_opt with
       | None ->
@@ -309,6 +319,8 @@ struct
       | Some {State.post= post_disjuncts, _; _} ->
           ((post_disjuncts, []), List.length post_disjuncts)
     in
+    (* List.iter pre ~f:(L.debug_dev "pre is : %a \n" T.DisjDomain.pp );
+    L.debug_dev "pre_non_disj is : %a \n " T.NonDisjDomain.pp pre_non_disj ; *)
     let (disjuncts, non_disj_astates), _ =
       List.foldi (List.rev pre) ~init:current_post_n
         ~f:(fun i (((post, non_disj_astates) as post_astate), n_disjuncts) pre_disjunct ->
@@ -319,18 +331,21 @@ struct
             (post_astate, n_disjuncts) )
           else if is_new_pre pre_disjunct then (
             L.d_printfln "@[<v2>Executing node from disjunct #%d, setting limit to %d@;" i limit ;
+            (* if is_repairing then  *)
             let disjuncts', non_disj' =
               Instrs.foldi ~init:([pre_disjunct], pre_non_disj) instrs ~f:exec_instr
             in
             L.d_printfln "@]@\n" ;
             let disj', n = Domain.join_up_to ~limit:disjunct_limit ~into:post disjuncts' in
-            ((disj', non_disj' :: non_disj_astates), n) )
+            ((disj', non_disj' :: non_disj_astates), n)
+            )
           else (
             L.d_printfln "@[Skipping already-visited disjunct #%d@]@;" i ;
             (post_astate, n_disjuncts) ) )
     in
     (disjuncts, List.fold ~init:T.NonDisjDomain.bottom ~f:T.NonDisjDomain.join non_disj_astates)
 
+  let is_pulse = true
 
   let pp_session_name node f = T.pp_session_name node f
 end
@@ -403,8 +418,29 @@ module AbstractInterpreterCommon (TransferFunctions : NodeTransferFunctions) = s
     in
     L.d_printfln_escaped "%t" pp_all
 
+  (* let prepend_patch_instrs instrs analysis_data loc =
+    let mk_load_instr (e:Exp.t) (typ:Typ.t) =
+      let id = Ident.create_fresh Ident.knormal in
+      (id, typ, Sil.Load { id; e; root_typ=typ; typ; loc })
+    in
+    let mk_call_instr (arg_ts : (Exp.t * Typ.t) list) =
+      let ret_id = Ident.create_fresh Ident.knormal in
+      let ret = (ret_id, StdTyp.void) in
+      let call_flags = CallFlags.default in
+      let e_fun = Exp.Const (Const.Cfun (Procname.from_string_c_fun "patch")) in
+      Sil.Call (ret, e_fun, arg_ts, loc, call_flags)
+    in
+    let pvar_locals = Procdesc.get_pvar_locals analysis_data.InterproceduralAnalysis.proc_desc in
+    let get_list_head (hd :: _) = hd in
+    let (pvar_one, typ_one) = get_list_head pvar_locals in
+    let (lhs_id, lhs_typ, load_instr) = mk_load_instr (Exp.Lvar pvar_one) typ_one in
+    let call_instr = mk_call_instr [(Exp.Var lhs_id, lhs_typ)] in
+    Instrs.prepend_instr (Instrs.prepend_instr instrs call_instr) load_instr *)
+
 
   let exec_node_instrs old_state_opt ~pp_instr proc_data node pre =
+    (* let node_location = CFG.Node.loc node in
+    L.debug_dev "exec_node_instrs: node location is %a\n" Location.pp node_location ; *)
     let instrs = CFG.instrs node in
     if Config.write_html then L.d_printfln_escaped "PRE STATE:@\n@[%a@]@\n" Domain.pp pre ;
     let exec_instr idx pre instr =
@@ -439,6 +475,14 @@ module AbstractInterpreterCommon (TransferFunctions : NodeTransferFunctions) = s
     in
     (* hack to ensure that we call [exec_instr] on a node even if it has no instructions *)
     let instrs = if Instrs.is_empty instrs then Instrs.singleton Sil.skip_instr else instrs in
+    let node_location = CFG.Node.loc node in
+    Config.pulse_is_repairing := if Int.equal node_location.line 9 then true
+    else false;
+    (* L.debug_dev "This is what i expected\n" ; *)
+    (* let instrs =
+      if Config.pulse_is_repairing then instrs
+      else instrs
+    in *)
     TransferFunctions.exec_node_instrs old_state_opt ~exec_instr pre instrs
 
 
@@ -446,6 +490,8 @@ module AbstractInterpreterCommon (TransferFunctions : NodeTransferFunctions) = s
      So, as of now, the termination of narrowing is not guaranteed in general. *)
   let exec_node ~pp_instr analysis_data node ~is_loop_head ~is_narrowing astate_pre inv_map =
     let node_id = Node.id node in
+    let node_location = Node.loc node in
+    (* L.debug_dev "exec_node with node %a\n" Location.pp node_location; *)
     let update_inv_map inv_map new_pre old_state_opt =
       let new_post = exec_node_instrs old_state_opt ~pp_instr analysis_data node new_pre in
       let new_visit_count =
@@ -543,6 +589,7 @@ module AbstractInterpreterCommon (TransferFunctions : NodeTransferFunctions) = s
       ~initial proc_desc =
     let cfg = CFG.from_pdesc proc_desc in
     let inv_map = exec_cfg_internal ~pp_instr cfg analysis_data ~do_narrowing ~initial in
+    (* L.debug_dev "Invariant map is %a\n" InvariantMap.pp inv_map; *)
     extract_post (Node.id (CFG.exit_node cfg)) inv_map
 end
 
@@ -659,6 +706,7 @@ module MakeWTONode (TransferFunctions : NodeTransferFunctions) = struct
 
   and exec_wto_partition ~pp_instr cfg proc_data ~mode ~is_first_visit inv_map
       (partition : CFG.Node.t WeakTopologicalOrder.Partition.t) =
+    L.debug_dev "========== exec_wto_partition ===========\n\n";
     match partition with
     | Empty ->
         inv_map
@@ -693,6 +741,7 @@ module MakeWTONode (TransferFunctions : NodeTransferFunctions) = struct
 
 
   let exec_cfg_internal ~pp_instr cfg proc_data ~do_narrowing ~initial =
+    L.debug_dev "========== exec_cfg_internal ===========\n\n";
     let wto = CFG.wto cfg in
     let exec_cfg ~mode inv_map =
       match wto with

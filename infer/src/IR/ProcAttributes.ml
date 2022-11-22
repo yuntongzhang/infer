@@ -111,6 +111,9 @@ let get_pvar_formals attributes =
   let pname = attributes.proc_name in
   List.map attributes.formals ~f:(fun (name, typ, _) -> (Pvar.mk name pname, typ))
 
+let get_pvar_locals attributes =
+  let pname = attributes.proc_name in
+  List.map attributes.locals ~f:(fun {name; typ; _} -> (Pvar.mk name pname, typ))
 
 let get_proc_name attributes = attributes.proc_name
 

@@ -16,6 +16,11 @@ type t =
 
 let equal = [%compare.equal: t]
 
+let distance {line=line_one;col=col_one;_} {line=line_two;col=col_two;_} =
+  let line_diff = abs (line_one - line_two) in
+  let col_diff = abs (col_one - col_two) in
+  (line_diff, col_diff)
+
 let none file = {line= -1; col= -1; file}
 
 let dummy = none (SourceFile.invalid __FILE__)

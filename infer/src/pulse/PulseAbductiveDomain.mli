@@ -211,6 +211,9 @@ val get_unreachable_attributes : t -> AbstractValue.t list
 val get_reachable : t -> AbstractValue.Set.t
 (** Return the addresses reachable from pre or post. *)
 
+val get_real_reachable: t -> AbstractValue.Set.t
+(** Return the real addresses reachable from post's real stack variables. *)
+
 val add_skipped_call : Procname.t -> Trace.t -> t -> t
 
 val add_skipped_calls : SkippedCalls.t -> t -> t

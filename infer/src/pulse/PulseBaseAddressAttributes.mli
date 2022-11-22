@@ -32,6 +32,8 @@ val java_resource_release : AbstractValue.t -> t -> t
 
 val fold : (AbstractValue.t -> Attributes.t -> 'a -> 'a) -> t -> 'a -> 'a
 
+val get_stack_var_triples : t -> (Var.t * AbstractValue.t * ValueHistory.t) list
+
 val check_valid : AbstractValue.t -> t -> (unit, Invalidation.t * Trace.t) result
 
 val check_initialized : AbstractValue.t -> t -> (unit, unit) result

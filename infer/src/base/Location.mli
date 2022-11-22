@@ -16,6 +16,9 @@ type t =
 
 val equal : t -> t -> bool
 
+val distance : t -> t -> (int * int)
+(** Compute distance between two locations. (Assuming in the same file.) *)
+
 val none : SourceFile.t -> t
 (** Dummy source location for the given file *)
 

@@ -105,4 +105,7 @@ val get_proc_name : t -> Procname.t
 val get_pvar_formals : t -> (Pvar.t * Typ.t) list
 (** Return pvar and type of formal parameters *)
 
+val get_pvar_locals : t -> (Pvar.t * Typ.t) list
+(** Return pvar and type of locals *)
+
 module SQLite : SqliteUtils.Data with type t = t

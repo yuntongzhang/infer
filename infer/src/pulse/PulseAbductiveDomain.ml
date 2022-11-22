@@ -988,6 +988,8 @@ let get_reachable {pre; post} =
   let post_keep = BaseDomain.reachable_addresses (post :> BaseDomain.t) in
   AbstractValue.Set.union pre_keep post_keep
 
+let get_real_reachable {post} =
+  BaseDomain.real_reachable_addresses (post :> BaseDomain.t)
 
 let apply_unknown_effect ?(havoc_filter = fun _ _ _ -> true) hist x astate =
   let havoc_accesses hist addr heap =

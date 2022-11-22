@@ -312,3 +312,15 @@ let add_to_errlog ~nesting history errlog =
 let get_first_main_event hist =
   Iter.head (Iter.rev (fun f -> iter ~main_only:true hist ~f))
   |> Option.bind ~f:(function Event event -> Some event | _ -> None)
+
+
+let compare_timestamp h1 h2 =
+  match get_first_main_event h1 with
+  | None -> 0
+  | Some event_one ->
+    match get_first_main_event h2 with
+    | None -> 0
+    | Some event_two -> 
+      let time_one = timestamp_of_event event_one in
+      let time_two = timestamp_of_event event_two in
+      Timestamp.compare time_one time_two

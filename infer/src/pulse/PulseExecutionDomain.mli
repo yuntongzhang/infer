@@ -37,6 +37,8 @@ include AbstractDomain.Disjunct with type t := t
 
 val continue : AbductiveDomain.t -> t
 
+val get_astate : t -> AbductiveDomain.t 
+
 val is_unsat_cheap : t -> bool
 (** see {!PulsePathCondition.is_unsat_cheap} *)
 

@@ -175,7 +175,7 @@ let run_proc_analysis exe_env ~caller_pdesc callee_pdesc =
   let preprocess () =
     incr nesting ;
     update_taskbar callee_pdesc ;
-    Preanal.do_preanalysis exe_env callee_pdesc ;
+    Preanal.do_preanalysis exe_env callee_pdesc ; 
     if Config.debug_mode then
       DotCfg.emit_proc_desc (Procdesc.get_attributes callee_pdesc).translation_unit callee_pdesc
       |> ignore ;
@@ -295,6 +295,7 @@ let dump_duplicate_procs source_file procs =
 
 
 let register_callee ?caller_summary callee_pname =
+  L.debug_dev "*** register_callee called ***";
   Option.iter
     ~f:(fun (summary : Summary.t) ->
       summary.callee_pnames <- Procname.Set.add callee_pname summary.callee_pnames )
@@ -344,19 +345,30 @@ let analyze_proc_name_no_caller exe_env callee_pname =
 
 let analyze_procedures exe_env procs_to_analyze source_file_opt =
   let saved_language = !Language.curr_language in
+  (* Make sure the patch functions are analyzed first. *)
+  (* let sorted_procs = List.stable_sort procs_to_analyze ~compare:(fun proc_name_one proc_name_two ->
+      let name_one = Procname.get_method proc_name_one in
+      let name_two = Procname.get_method proc_name_two in
+      if String.equal name_one "patch" then -1
+      else if String.equal name_two "patch" then 1
+      else 0)
+    in *)
+  let sorted_procs = procs_to_analyze in
   let analyze_proc_name_call pname =
+    L.debug_dev "analyze_proc_name on %a \n" Procname.pp pname;
     ignore (analyze_proc_name_no_caller exe_env pname : Summary.t option)
   in
-  List.iter ~f:analyze_proc_name_call procs_to_analyze ;
+  List.iter ~f:analyze_proc_name_call sorted_procs ;
   Option.iter source_file_opt ~f:(fun source_file ->
-      if Config.dump_duplicate_symbols then dump_duplicate_procs source_file procs_to_analyze ) ;
+      if Config.dump_duplicate_symbols then dump_duplicate_procs source_file sorted_procs ) ;
   Option.iter source_file_opt ~f:(fun source_file ->
-      Callbacks.iterate_file_callbacks_and_store_issues procs_to_analyze exe_env source_file ) ;
+      Callbacks.iterate_file_callbacks_and_store_issues sorted_procs exe_env source_file ) ;
   Language.curr_language := saved_language
 
 
 (** Invoke all procedure-level and file-level callbacks on a given environment. *)
 let analyze_file exe_env source_file =
+  L.debug_dev "*** OnDemand.analyze_file is called ***\n";
   let procs_to_analyze = SourceFiles.proc_names_of_source source_file in
   analyze_procedures exe_env procs_to_analyze (Some source_file)
 

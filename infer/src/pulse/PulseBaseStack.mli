@@ -11,6 +11,8 @@ open PulseBasicInterface
 include
   PrettyPrintable.MonoMap with type key = Var.t and type value = AbstractValue.t * ValueHistory.t
 
+val get_as_triple : t -> (key * AbstractValue.t * ValueHistory.t) list 
+
 (* need to shadow the declaration in [MonoMap] even though it is unused since [MapS.compare] has a
      different type *)
 val compare : t -> t -> int [@@warning "-32"]

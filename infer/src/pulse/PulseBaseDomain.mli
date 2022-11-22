@@ -26,6 +26,13 @@ val reachable_addresses_from :
 (** Compute the set of abstract addresses that are reachable from given abstract addresses. Use
     already_visited as initial set of visited values (empty by default). *)
 
+
+(** Extract triples of stack var to their corresponding logical addr and history, 
+    from AddressAttributes and Stack. *)
+val extract_stack_var_triples : t -> (Var.t * AbstractValue.t * ValueHistory.t) list
+
+val real_reachable_addresses : t -> AbstractValue.Set.t
+
 type mapping
 
 val empty_mapping : mapping

@@ -51,6 +51,8 @@ val concat_map : not_reversed t -> f:(Sil.instr -> Sil.instr array) -> not_rever
 
 val reverse_order : not_reversed t -> reversed t
 
+(* val prepend_instr : _ t -> Sil.instr -> _ t *)
+
 val is_empty : _ t -> bool
 
 val count : _ t -> int

@@ -205,6 +205,7 @@ let rec pp_ pe pp_t f e =
   in
   match (e : t) with
   | Var id ->
+    (* L.debug_dev "=== IN Var \n"; *)
       Ident.pp f id
   | Const c ->
       (Const.pp pe) f c
@@ -221,6 +222,7 @@ let rec pp_ pe pp_t f e =
   | Closure closure ->
       pp_closure_ pe pp_t f closure
   | Lvar pv ->
+    (* L.debug_dev "=== IN LVar \n"; *)
       Pvar.pp pe f pv
   | Lfield (e, fld, _) ->
       F.fprintf f "%a.%a" pp_exp e Fieldname.pp fld
@@ -262,7 +264,7 @@ let pp_printenv ~print_types pe f e =
   pp_ pe (pp_typ pe) f e
 
 
-let pp f e = pp_printenv ~print_types:false Pp.text f e
+let pp f e = pp_printenv ~print_types:true Pp.text f e
 
 let pp_closure = pp_closure_ Pp.text (Typ.pp Pp.text)
 

@@ -81,6 +81,7 @@ let analyze_target : (TaskSchedulerTypes.target, string) Tasks.doer =
     | ProcUID proc_uid ->
         proc_name_of_uid proc_uid |> analyze_proc_name exe_env
     | File source_file ->
+        L.debug_dev "Source file is %a\n" SourceFile.pp source_file;
         analyze_source_file exe_env source_file
 
 

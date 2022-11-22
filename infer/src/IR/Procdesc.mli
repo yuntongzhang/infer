@@ -255,6 +255,9 @@ val get_formals : t -> (Mangled.t * Typ.t * Annot.Item.t) list
 val get_pvar_formals : t -> (Pvar.t * Typ.t) list
 (** Return pvar and type of formal parameters *)
 
+val get_pvar_locals : t -> (Pvar.t * Typ.t) list
+(** Return pvar and type of formal parameters *)
+
 val get_loc : t -> Location.t
 (** Return loc information for the procedure *)
 
@@ -331,6 +334,8 @@ val replace_instrs_by_using_context :
 
 val iter_nodes : (Node.t -> unit) -> t -> unit
 (** iterate over all the nodes of a procedure *)
+
+val find_nearest_node : t -> Location.t -> Node.t
 
 val fold_nodes : t -> init:'accum -> f:('accum -> Node.t -> 'accum) -> 'accum
 (** fold over all the nodes of a procedure *)

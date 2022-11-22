@@ -13,6 +13,8 @@ open PulseBasicInterface
 open PulseDomainInterface
 open PulseOperations.Import
 
+module PatchIngredients = PulsePatchIngredients
+
 (** raised when we detect that pulse is using too much memory to stop the analysis of the current
     procedure *)
 exception AboutToOOM
@@ -47,6 +49,8 @@ module PulseTransferFunctions = struct
   module NonDisjDomain = NonDisjDomain
 
   type analysis_data = PulseSummary.t InterproceduralAnalysis.t
+
+  let is_pulse = true
 
   let get_pvar_formals pname =
     IRAttributes.load pname |> Option.map ~f:ProcAttributes.get_pvar_formals
@@ -112,7 +116,16 @@ module PulseTransferFunctions = struct
     match callee_pname with
     | Some callee_pname when not Config.pulse_intraprocedural_only ->
         let formals_opt = get_pvar_formals callee_pname in
+        (* let () = match callee_pname with
+        | Procname.C {name; mangled ; parameters; _} -> L.debug_dev "parameters are %a\n" Procname.Parameter.pp_parameters parameters;
+        | _ -> ();
+    in *)
+        L.debug_dev "Ahahahaha callee_pname is %a \n" Procname.pp callee_pname;
         let callee_data = analyze_dependency callee_pname in
+        let () = match callee_data with
+        | Some (_, summary) -> L.debug_dev "Summary: %a\n" PulseSummary.pp summary;
+        | None -> ()
+       in
         let call_kind_of call_exp =
           match call_exp with
           | Exp.Closure {captured_vars} ->
@@ -343,6 +356,7 @@ module PulseTransferFunctions = struct
       | None ->
           PerfEvent.(log (fun logger -> log_begin_event logger ~name:"pulse interproc call" ())) ;
           let r =
+            L.debug_dev "--- Going to execute interprocedural call \n";
             interprocedural_call analysis_data path ret callee_pname call_exp func_args call_loc
               flags astate
           in
@@ -608,6 +622,7 @@ module PulseTransferFunctions = struct
       (astate_n : NonDisjDomain.t)
       ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data) _cfg_node
       (instr : Sil.instr) : ExecutionDomain.t list * PathContext.t * NonDisjDomain.t =
+    Sil.d_instr instr;
     match astate with
     | AbortProgram _ | ISLLatentMemoryError _ | LatentAbortProgram _ | LatentInvalidAccess _ ->
         ([astate], path, astate_n)
@@ -620,6 +635,7 @@ module PulseTransferFunctions = struct
     | ContinueProgram astate -> (
       match instr with
       | Load {id= lhs_id; e= rhs_exp; loc; typ} ->
+          let () = L.debug_dev "Load rhs exp is : %a \n" Exp.pp  rhs_exp in
           (* [lhs_id := *rhs_exp] *)
           let deref_rhs astate =
             let results =
@@ -725,6 +741,11 @@ module PulseTransferFunctions = struct
           let astate_n = NonDisjDomain.set_captured_variables rhs_exp astate_n in
           (PulseReport.report_results tenv proc_desc err_log loc result, path, astate_n)
       | Call (ret, call_exp, actuals, loc, call_flags) ->
+          L.debug_dev "call_exp in Call is : %a : \n" Exp.pp call_exp;
+          List.iter actuals ~f:(function actual -> match actual with
+          | (exp, _) ->
+            L.debug_dev "    actual is : %a : \n" Exp.pp exp
+          | _ -> ());
           let astate_n = check_modified_before_dtor actuals call_exp astate astate_n in
           let astates =
             dispatch_call analysis_data path ret call_exp actuals loc call_flags astate
@@ -786,6 +807,10 @@ module PulseTransferFunctions = struct
 
   let exec_instr ((astate, path), astate_n) analysis_data cfg_node instr :
       DisjDomain.t list * NonDisjDomain.t =
+    (* let locals = Procdesc.get_locals analysis_data.InterproceduralAnalysis.proc_desc in
+    List.iter locals ~f:(L.debug_dev "=== one local is: %a \n " Procdesc.pp_local) ; *)
+    let source_loc = Sil.location_of_instr instr in
+    L.debug_dev " exec_instr: source location is %a\n" Location.pp source_loc;
     let heap_size = heap_size () in
     ( match Config.pulse_max_heap with
     | Some max_heap_size when heap_size > max_heap_size ->
@@ -807,6 +832,9 @@ module PulseTransferFunctions = struct
           else Some (exec_state, PathContext.post_exec_instr path) )
     , astate_n )
 
+
+
+    (* let arg_one = Exp.Lvar  *)
 
   let pp_session_name _node fmt = F.pp_print_string fmt "Pulse"
 end
@@ -843,6 +871,10 @@ let should_analyze proc_desc =
   && (not (Procdesc.is_kotlin proc_desc))
   && not (Procdesc.is_too_big Pulse ~max_cfg_size:Config.pulse_max_cfg_size proc_desc)
 
+let is_patch_func proc_desc =
+  let proc_name = Procdesc.get_proc_name proc_desc in
+  let method_name = Procname.get_method proc_name in
+  if String.equal method_name "main" then true else false
 
 let exit_function analysis_data location posts non_disj_astate =
   let astates, astate_n =
@@ -875,11 +907,36 @@ let analyze ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data
   if should_analyze proc_desc then (
     AbstractValue.State.reset () ;
     PulseTopl.Debug.dropped_disjuncts_count := 0 ;
+    L.debug_dev "==== Analyzing procedure '%a' ==== \n" Procdesc.pp_signature proc_desc;
     let initial =
       with_html_debug_node (Procdesc.get_start_node proc_desc) ~desc:"initial state creation"
         ~f:(fun () -> (initial tenv proc_desc, NonDisjDomain.bottom))
     in
-    match DisjunctiveAnalyzer.compute_post analysis_data ~initial proc_desc with
+    let cfg = PulseTransferFunctions.CFG.from_pdesc proc_desc in
+    let inv_map = DisjunctiveAnalyzer.exec_cfg cfg analysis_data ~initial in
+    let procedure_post = DisjunctiveAnalyzer.extract_post (PulseTransferFunctions.CFG.Node.id (PulseTransferFunctions.CFG.exit_node cfg)) inv_map in
+    let source_file = SourceFile.create "example/simpler_leak.c" in
+    let fix_loc_node = Procdesc.find_nearest_node proc_desc {file=source_file; line=18; col=(-1)} in
+    let fix_loc_node_id = PulseTransferFunctions.CFG.Node.id fix_loc_node in
+    (* L.debug_dev "Location of start node is %a\n\n" Location.pp_file_pos (Procdesc.Node.get_loc (Procdesc.get_start_node proc_desc)); *)
+    L.debug_dev "`~~~~~Location of fix node is %a\n\n" Location.pp_file_pos (Procdesc.Node.get_loc fix_loc_node);
+    let fix_node_pre = DisjunctiveAnalyzer.extract_pre fix_loc_node_id inv_map in
+    let () = match fix_node_pre with
+    | Some (pres, non_disj_state) ->
+      List.iter pres ~f:(fun (exec_state, path) ->
+          L.debug_dev "Pre-condition of fix location node is %a\n" PulseTransferFunctions.DisjDomain.pp (exec_state, path);
+          let reachable_addr = AbductiveDomain.get_reachable (ExecutionDomain.get_astate exec_state) in
+          L.debug_dev "Reachable addresses : %a \n" AbstractValue.Set.pp reachable_addr;
+          let patch_ingredients = PatchIngredients.build_from_astate (ExecutionDomain.get_astate exec_state) in
+          let real_reachable_addr = AbductiveDomain.get_real_reachable (ExecutionDomain.get_astate exec_state) in
+          L.debug_dev "Real reachable addresses: %a \n" AbstractValue.Set.pp real_reachable_addr;
+      );
+      ()
+    | None -> ()
+    in
+    L.debug_dev "Printing Procdesc ... %a \n" Procdesc.pp_signature proc_desc;
+    match procedure_post with
+    (* match DisjunctiveAnalyzer.compute_post analysis_data ~initial proc_desc with *)
     | Some (posts, non_disj_astate) ->
         with_html_debug_node (Procdesc.get_exit_node proc_desc) ~desc:"pulse summary creation"
           ~f:(fun () ->
@@ -894,6 +951,7 @@ let analyze ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data
               PulseSummary.of_posts tenv proc_desc err_log exit_location
                 (Option.to_list objc_nil_summary @ posts)
             in
+            L.debug_dev "Pulse summary for %a is : %a \n" Procname.pp (Procdesc.get_proc_name proc_desc) PulseSummary.pp summary ;
             report_topl_errors proc_desc err_log summary ;
             report_unnecessary_copies proc_desc err_log non_disj_astate ;
             if Config.trace_topl then
@@ -909,12 +967,60 @@ let analyze ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data
         None )
   else None
 
+(* let locate  *)
+
+(* let analyze_patches ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data) =
+  AbstractValue.State.reset () ;
+  PulseTopl.Debug.dropped_disjuncts_count := 0 ;
+  L.debug_dev "==== Analyzing with patches for proc: '%a' ==== \n" Procdesc.pp_signature proc_desc;
+  let initial =
+    with_html_debug_node (Procdesc.get_start_node proc_desc) ~desc:"initial state creation"
+      ~f:(fun () -> (initial tenv proc_desc, NonDisjDomain.bottom))
+  in
+  let inv_map = DisjunctiveAnalyzer.exec_pdesc analysis_data ~initial proc_desc in
+  let patch_location_node =
+
+  match DisjunctiveAnalyzer.compute_post analysis_data ~initial proc_desc with
+  | Some (posts, non_disj_astate) ->
+      let exit_location = Procdesc.get_exit_node proc_desc |> Procdesc.Node.get_loc in
+      let posts, non_disj_astate =
+        (* Do final cleanup at the end of procdesc
+            Forget path contexts on the way, we don't propagate them across functions *)
+        exit_function analysis_data exit_location posts non_disj_astate
+      in
+      let objc_nil_summary = PulseObjectiveCSummary.mk_nil_messaging_summary tenv proc_desc in
+      let summary =
+        PulseSummary.of_posts tenv proc_desc err_log exit_location
+          (Option.to_list objc_nil_summary @ posts)
+      in
+      (* L.debug_dev "Pulse summary for %a is : %a \n" Procname.pp (Procdesc.get_proc_name proc_desc) PulseSummary.pp summary ; *)
+      report_topl_errors proc_desc err_log summary ;
+      report_unnecessary_copies proc_desc err_log non_disj_astate ;
+      if Config.trace_topl then
+        L.debug Analysis Quiet "ToplTrace: dropped %d disjuncts in %a@\n"
+          !PulseTopl.Debug.dropped_disjuncts_count
+          Procname.pp_unique_id
+          (Procdesc.get_proc_name proc_desc) ;
+      if Config.pulse_scuba_logging then
+        ScubaLogging.log_count ~label:"pulse_summary" ~value:(List.length summary) ;
+      Stats.add_pulse_summaries_count (List.length summary) ;
+      Some summary
+  | None ->
+      None *)
+
 
 let checker ({InterproceduralAnalysis.proc_desc} as analysis_data) =
   if should_analyze proc_desc then (
-    try analyze analysis_data
-    with AboutToOOM ->
-      (* We trigger GC to avoid skipping the next procedure that will be analyzed. *)
-      Gc.major () ;
-      None )
+    if is_patch_func proc_desc then (
+      (* This is the function where patch should be applied. Just compute invriant map. *)
+      analyze analysis_data
+    )
+    else (
+      try analyze analysis_data
+      with AboutToOOM ->
+        (* We trigger GC to avoid skipping the next procedure that will be analyzed. *)
+        Gc.major () ;
+        None
+    )
+  )
   else None

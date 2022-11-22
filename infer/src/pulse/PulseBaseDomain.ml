@@ -302,6 +302,20 @@ let reachable_addresses_from ?(already_visited = AbstractValue.Set.empty) addres
   |> fst
 
 
+let extract_stack_var_triples {stack; attrs} =
+  let stack_triples = Stack.get_as_triple stack in
+  let attrs_triples = AddressAttributes.get_stack_var_triples attrs in
+  stack_triples @ attrs_triples
+
+
+(** Traces to all reachable addresses from stack variables in attrs, instead of those recorded in
+   `stack`, since those are not accurate due to EXIT_SCOPE *)
+let real_reachable_addresses ({attrs} as astate) =
+  let var_addr_triples = extract_stack_var_triples astate in
+  let stack_addrs = List.fold ~f:(fun acc (var, addr, history) -> addr :: acc) ~init:[] var_addr_triples in
+  let init_addrs = Caml.List.to_seq stack_addrs in 
+  reachable_addresses_from init_addrs astate
+
 let subst_var ~for_summary subst ({heap; stack; attrs} as astate) =
   let open SatUnsat.Import in
   let* stack' = Stack.subst_var subst stack in

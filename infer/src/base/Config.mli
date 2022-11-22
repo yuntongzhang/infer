@@ -527,6 +527,8 @@ val progress_bar : [`MultiLine | `Plain | `Quiet]
 
 val project_root : string
 
+val pulse_is_repairing : bool ref
+
 val pulse_cut_to_one_path_procedures_pattern : Str.regexp option
 
 val pulse_inline_global_init_func_pointer : bool

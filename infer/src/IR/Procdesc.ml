@@ -536,6 +536,8 @@ let get_formals pdesc = pdesc.attributes.formals
 
 let get_pvar_formals pdesc = ProcAttributes.get_pvar_formals pdesc.attributes
 
+let get_pvar_locals pdesc = ProcAttributes.get_pvar_locals pdesc.attributes
+
 let get_loc pdesc = pdesc.attributes.loc
 
 (** Return name and type of local variables *)
@@ -585,6 +587,25 @@ let is_java_synchronized pdesc = pdesc.attributes.is_java_synchronized_method
 let is_csharp_synchronized pdesc = pdesc.attributes.is_csharp_synchronized_method
 
 let is_objc_arc_on pdesc = pdesc.attributes.is_objc_arc_on
+
+let find_nearest_node pdesc loc =
+  let nodes = get_nodes pdesc in
+  let sorted_nodes = List.stable_sort nodes ~compare:(fun node_one node_two ->
+    let compute_distance node =
+      Location.distance loc (Node.get_loc node)
+    in
+    let (line_dist_one, col_dist_one) = compute_distance node_one in
+    let (line_dist_two, col_dist_two) = compute_distance node_two in
+    let line_diff = line_dist_one - line_dist_two in
+    let col_diff = col_dist_one - col_dist_two in
+    if Int.equal line_diff 0 then col_diff else line_diff
+    )
+  in
+  List.iter sorted_nodes ~f:( L.debug_dev "Sorted node: %a \n" Node.pp);
+  match sorted_nodes with
+  | n :: _  -> n
+  | []      -> Node.dummy (get_proc_name pdesc)
+
 
 let iter_nodes f pdesc = List.iter ~f (get_nodes pdesc)
 
