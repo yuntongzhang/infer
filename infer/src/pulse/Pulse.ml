@@ -838,10 +838,16 @@ let initial tenv proc_desc =
 let should_analyze proc_desc =
   let proc_name = Procdesc.get_proc_name proc_desc in
   let proc_id = Procname.to_unique_id proc_name in
+  let only_func_name = Config.pulse_function_only in
+  let should_analyze_only_func = match only_func_name with
+    | None -> true (* option not specified - should analyze everything *)
+    | Some f -> String.equal (Procname.get_method proc_name) f
+  in
   let f regex = not (Str.string_match regex proc_id 0) in
   Option.value_map Config.pulse_skip_procedures ~f ~default:true
   && (not (Procdesc.is_kotlin proc_desc))
   && not (Procdesc.is_too_big Pulse ~max_cfg_size:Config.pulse_max_cfg_size proc_desc)
+  && should_analyze_only_func
 
 
 let exit_function analysis_data location posts non_disj_astate =
@@ -894,6 +900,7 @@ let analyze ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data
               PulseSummary.of_posts tenv proc_desc err_log exit_location
                 (Option.to_list objc_nil_summary @ posts)
             in
+            (* L.debug_dev "Pulse summary for %a is : %a \n" Procname.pp (Procdesc.get_proc_name proc_desc) PulseSummary.pp summary ; *)
             report_topl_errors proc_desc err_log summary ;
             report_unnecessary_copies proc_desc err_log non_disj_astate ;
             if Config.trace_topl then
@@ -912,6 +919,7 @@ let analyze ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data
 
 let checker ({InterproceduralAnalysis.proc_desc} as analysis_data) =
   if should_analyze proc_desc then (
+    (* L.debug_dev "Pulse calling analyze on function %a \n" Procname.pp (Procdesc.get_proc_name proc_desc); *)
     try analyze analysis_data
     with AboutToOOM ->
       (* We trigger GC to avoid skipping the next procedure that will be analyzed. *)
