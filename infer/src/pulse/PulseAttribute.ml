@@ -28,7 +28,7 @@ module Attribute = struct
     | JavaResource of JavaClassName.t
     | CSharpResource of CSharpClassName.t
     | ObjCAlloc
-  [@@deriving compare, equal]
+  [@@deriving compare, equal, yojson_of]
 
   let pp_allocator fmt = function
     | CMalloc ->
@@ -51,7 +51,7 @@ module Attribute = struct
         F.fprintf fmt "alloc"
 
 
-  type taint_in = {v: AbstractValue.t} [@@deriving compare, equal]
+  type taint_in = {v: AbstractValue.t} [@@deriving compare, equal, yojson_of]
 
   let pp_taint_in fmt {v} = F.fprintf fmt "{@[v= %a@]}" AbstractValue.pp v
 
@@ -174,7 +174,7 @@ module Attribute = struct
     | UnreachableAt of Location.t
     | UsedAsBranchCond of Procname.t * Location.t * Trace.t
     | WrittenTo of Timestamp.t * Trace.t
-  [@@deriving compare, equal, variants]
+  [@@deriving compare, equal, variants, yojson_of]
 
   type rank = int
 

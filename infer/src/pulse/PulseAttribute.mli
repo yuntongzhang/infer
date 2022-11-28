@@ -26,11 +26,11 @@ type allocator =
   | JavaResource of JavaClassName.t
   | CSharpResource of CSharpClassName.t
   | ObjCAlloc
-[@@deriving equal]
+[@@deriving equal, yojson_of]
 
 val pp_allocator : F.formatter -> allocator -> unit
 
-type taint_in = {v: AbstractValue.t} [@@deriving compare, equal]
+type taint_in = {v: AbstractValue.t} [@@deriving compare, equal, yojson_of]
 
 module Tainted : sig
   type t =
@@ -115,7 +115,7 @@ type t =
           reporting leaks *)
   | UsedAsBranchCond of Procname.t * Location.t * Trace.t
   | WrittenTo of Timestamp.t * Trace.t
-[@@deriving compare]
+[@@deriving compare, yojson_of]
 
 val pp : F.formatter -> t -> unit
 
@@ -130,6 +130,8 @@ val filter_unreachable :
 
 module Attributes : sig
   include PrettyPrintable.PPUniqRankSet with type elt = t
+
+  val yojson_of_t : t -> Yojson.Safe.t
 
   val get_address_of_stack_variable : t -> (Var.t * Location.t * ValueHistory.t) option
 

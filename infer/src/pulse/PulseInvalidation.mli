@@ -17,6 +17,7 @@ type std_vector_function =
   | PushBack
   | Reserve
   | ShrinkToFit
+[@@deriving yojson_of]
 
 val pp_std_vector_function : F.formatter -> std_vector_function -> unit
 
@@ -29,7 +30,7 @@ type t =
   | GoneOutOfScope of Pvar.t * Typ.t
   | OptionalEmpty
   | StdVector of std_vector_function
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 val pp : F.formatter -> t -> unit
 
@@ -41,7 +42,7 @@ type must_be_valid_reason =
   | InsertionIntoCollectionValue
   | SelfOfNonPODReturnMethod of Typ.t
   | NullArgumentWhereNonNullExpected of string
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 val pp_must_be_valid_reason : F.formatter -> must_be_valid_reason option -> unit
 

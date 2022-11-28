@@ -9,7 +9,7 @@ open! IStd
 module F = Format
 
 module Kind = struct
-  type t = string [@@deriving compare, equal]
+  type t = string [@@deriving compare, yojson_of, equal]
 
   type kind_info = {name: string; is_data_flow_only: bool}
 
@@ -47,7 +47,7 @@ type origin =
   | ReturnValue
   | Allocation of {typ: string}
   | Field of {name: string; origin: origin}
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 let rec pp_origin fmt = function
   | Argument {index} ->
@@ -62,7 +62,7 @@ let rec pp_origin fmt = function
 
 type t =
   {kinds: Kind.t list; proc_name: Procname.t; origin: origin; block_passed_to: Procname.t option}
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 let pp fmt {kinds; proc_name; origin; block_passed_to} =
   let proc_name_s =

@@ -16,7 +16,7 @@ type std_vector_function =
   | PushBack
   | Reserve
   | ShrinkToFit
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 let pp_std_vector_function f = function
   | Assign ->
@@ -46,7 +46,7 @@ type t =
   | GoneOutOfScope of Pvar.t * Typ.t
   | OptionalEmpty
   | StdVector of std_vector_function
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 type must_be_valid_reason =
   | BlockCall
@@ -54,7 +54,7 @@ type must_be_valid_reason =
   | InsertionIntoCollectionValue
   | SelfOfNonPODReturnMethod of Typ.t
   | NullArgumentWhereNonNullExpected of string
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 let pp_must_be_valid_reason f = function
   | None ->

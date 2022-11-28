@@ -9,7 +9,7 @@ open! IStd
 module F = Format
 
 module Kind : sig
-  type t [@@deriving compare, equal]
+  type t [@@deriving compare, equal, yojson_of]
 
   val pp : F.formatter -> t -> unit
 
@@ -26,13 +26,13 @@ end
 
 type origin =
   | Argument of {index: int}
-  | ReturnValue
+  | ReturnValue [@@deriving yojson_of]
   | Allocation of {typ: string}
   | Field of {name: string; origin: origin}
 [@@deriving compare, equal]
 
 type t =
   {kinds: Kind.t list; proc_name: Procname.t; origin: origin; block_passed_to: Procname.t option}
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 val pp : F.formatter -> t -> unit
