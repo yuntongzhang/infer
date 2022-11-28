@@ -15,7 +15,7 @@ type t =
   ; macro_file_opt: SourceFile.t option
         (** If the location is coming from macro expansion, the name of the file macro is defined in *)
   ; macro_line: int  (** If the location is coming from macro expansion, the line number *) }
-[@@deriving compare, equal, sexp, hash]
+[@@deriving compare, equal, sexp, sexp_of, yojson_of, hash]
 
 let get_macro_file_line_opt {macro_file_opt; macro_line} =
   Option.map macro_file_opt ~f:(fun file -> (file, macro_line))

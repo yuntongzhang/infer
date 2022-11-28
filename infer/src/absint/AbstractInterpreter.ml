@@ -628,6 +628,7 @@ module AbstractInterpreterCommon (TransferFunctions : NodeTransferFunctions) = s
   let make_compute_post ~exec_cfg_internal ?(pp_instr = pp_sil_instr) analysis_data ~do_narrowing
       ~initial proc_desc =
     let cfg = CFG.from_pdesc proc_desc in
+    (* L.debug_dev "Computing post for function %a\n" Procname.pp (Procdesc.get_proc_name proc_desc); *)
     let inv_map = exec_cfg_internal ~pp_instr cfg analysis_data ~do_narrowing ~initial in
     extract_post (Node.id (CFG.exit_node cfg)) inv_map
 

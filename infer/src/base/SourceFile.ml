@@ -20,7 +20,7 @@ type t =
             (** path relative to the workspace of the project root with respect to which the source
                 file was captured *)
       ; rel_path: string  (** path of the source file relative to the project root *) }
-[@@deriving compare, equal, sexp, hash]
+[@@deriving compare, equal, sexp, sexp_of, yojson_of, hash]
 
 module T = struct
   type nonrec t = t [@@deriving compare, equal, sexp]

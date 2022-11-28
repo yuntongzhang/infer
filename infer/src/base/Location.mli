@@ -15,7 +15,7 @@ type t =
   ; macro_file_opt: SourceFile.t option
         (** If the location is coming from macro expansion, the name of the file macro is defined in *)
   ; macro_line: int  (** If the location is coming from macro expansion, the line number *) }
-[@@deriving compare, sexp_of, sexp, hash]
+[@@deriving compare, sexp_of, yojson_of, sexp, hash]
 
 val get_macro_file_line_opt : t -> (SourceFile.t * int) option
 
