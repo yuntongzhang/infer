@@ -50,7 +50,7 @@ type t = private
         (** a call that could be resolved via analysis-time specialization has been skipped *)
   ; skipped_calls: SkippedCalls.t  (** metadata: procedure calls for which no summary was found *)
   }
-[@@deriving equal]
+[@@deriving equal, yojson_of]
 
 val leq : lhs:t -> rhs:t -> bool
 

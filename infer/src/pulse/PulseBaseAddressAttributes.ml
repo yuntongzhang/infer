@@ -25,7 +25,7 @@ let equal = Graph.equal AttributesNoRank.equal
 
 let for_all = Graph.for_all
 
-let yojson_of_t = [%yojson_of: _]
+let yojson_of_t m = [%yojson_of: (AbstractValue.t * Attributes.t) list] (Graph.bindings m)
 
 let add_one addr attribute attrs =
   match Graph.find_opt addr attrs with

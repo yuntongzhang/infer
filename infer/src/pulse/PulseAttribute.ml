@@ -24,7 +24,7 @@ module Attribute = struct
     | CppNew
     | CppNewArray
     | JavaResource of JavaClassName.t
-  [@@deriving compare, equal]
+  [@@deriving compare, equal, yojson_of]
 
   let pp_allocator fmt = function
     | CMalloc ->
@@ -43,7 +43,7 @@ module Attribute = struct
         F.fprintf fmt "resource %a" JavaClassName.pp class_name
 
 
-  type taint_in = {v: AbstractValue.t} [@@deriving compare, equal]
+  type taint_in = {v: AbstractValue.t} [@@deriving compare, equal, yojson_of]
 
   let pp_taint_in fmt {v} = F.fprintf fmt "{@[v= %a@]}" AbstractValue.pp v
 
@@ -74,7 +74,7 @@ module Attribute = struct
     | UnknownEffect of CallEvent.t * ValueHistory.t
     | UnreachableAt of Location.t
     | WrittenTo of Trace.t
-  [@@deriving compare, variants]
+  [@@deriving compare, variants, yojson_of]
 
   let equal = [%compare.equal: t]
 
@@ -386,6 +386,8 @@ end
 
 module Attributes = struct
   module Set = PrettyPrintable.MakePPUniqRankSet (Int) (Attribute)
+
+  let yojson_of_t m = [%yojson_of: Attribute.t list] (Set.elements m)
 
   let get_by_rank rank ~dest attrs = Set.find_rank attrs rank |> Option.map ~f:dest
 

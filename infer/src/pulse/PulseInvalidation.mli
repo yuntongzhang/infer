@@ -17,10 +17,11 @@ type std_vector_function =
   | PushBack
   | Reserve
   | ShrinkToFit
+[@@deriving yojson_of]
 
 val pp_std_vector_function : F.formatter -> std_vector_function -> unit
 
-type java_iterator_function = Remove
+type java_iterator_function = Remove [@@deriving yojson_of]
 
 type t =
   | CFree
@@ -33,7 +34,7 @@ type t =
   | OptionalEmpty
   | StdVector of std_vector_function
   | JavaIterator of java_iterator_function
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 val isl_equiv : t -> t -> bool
 (** check equality up to some ISL equivalences *)
@@ -47,7 +48,7 @@ type must_be_valid_reason =
   | InsertionIntoCollectionKey
   | InsertionIntoCollectionValue
   | SelfOfNonPODReturnMethod of Typ.t
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 val pp_must_be_valid_reason : F.formatter -> must_be_valid_reason option -> unit
 

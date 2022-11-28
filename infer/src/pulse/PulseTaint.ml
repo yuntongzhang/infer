@@ -9,7 +9,7 @@ open! IStd
 module F = Format
 
 module Kind = struct
-  type t = string [@@deriving compare]
+  type t = string [@@deriving compare, yojson_of]
 
   (** Taint "kinds" are user-configurable and thus represented as strings. This hash table is here
       to make sure we only store one copy of each kind. *)
@@ -27,7 +27,7 @@ module Kind = struct
   let sexp_of_t = String.sexp_of_t
 end
 
-type origin = Argument of {index: int} | ReturnValue [@@deriving compare, equal]
+type origin = Argument of {index: int} | ReturnValue [@@deriving compare, equal, yojson_of]
 
 let pp_origin fmt = function
   | Argument {index} ->
@@ -36,7 +36,7 @@ let pp_origin fmt = function
       F.fprintf fmt "value returned from"
 
 
-type t = {kinds: Kind.t list; proc_name: Procname.t; origin: origin} [@@deriving compare, equal]
+type t = {kinds: Kind.t list; proc_name: Procname.t; origin: origin} [@@deriving compare, equal, yojson_of]
 
 let pp fmt {kinds; proc_name; origin} =
   F.fprintf fmt "%a %a with kind%s %a" pp_origin origin Procname.pp proc_name

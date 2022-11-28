@@ -16,7 +16,7 @@ type std_vector_function =
   | PushBack
   | Reserve
   | ShrinkToFit
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 let pp_std_vector_function f = function
   | Assign ->
@@ -37,7 +37,7 @@ let pp_std_vector_function f = function
       F.fprintf f "std::vector::shrink_to_fit"
 
 
-type java_iterator_function = Remove [@@deriving compare, equal]
+type java_iterator_function = Remove [@@deriving compare, equal, yojson_of]
 
 let pp_java_iterator_function f = function Remove -> F.pp_print_string f "Iterator.remove"
 
@@ -52,14 +52,14 @@ type t =
   | OptionalEmpty
   | StdVector of std_vector_function
   | JavaIterator of java_iterator_function
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 type must_be_valid_reason =
   | BlockCall
   | InsertionIntoCollectionKey
   | InsertionIntoCollectionValue
   | SelfOfNonPODReturnMethod of Typ.t
-[@@deriving compare, equal]
+[@@deriving compare, equal, yojson_of]
 
 let pp_must_be_valid_reason f = function
   | None ->

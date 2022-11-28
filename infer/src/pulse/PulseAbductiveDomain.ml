@@ -1318,6 +1318,13 @@ let summary_of_post tenv pdesc location astate0 =
   let astate = {astate with path_condition} in
   let* astate, error = incorporate_new_eqs ~for_summary:true astate new_eqs in
   let astate_before_filter = astate in
+  (* let json_astate = yojson_of_t astate_before_filter in
+  let f_json json_content =
+    Yojson.Safe.to_channel stdout json_content;
+    Out_channel.newline stdout;
+    Out_channel.flush stdout;
+  in
+  f_json json_astate; *)
   let* astate, live_addresses, dead_addresses, new_eqs =
     filter_for_summary tenv (Procdesc.get_proc_name pdesc) astate
   in
@@ -1328,6 +1335,7 @@ let summary_of_post tenv pdesc location astate0 =
     | Some _ ->
         Sat (astate, error)
   in
+  (* L.debug_dev "Summary of post called on astate (before filtering) %a \n" pp astate_before_filter; *)
   match error with
   | None -> (
     match
