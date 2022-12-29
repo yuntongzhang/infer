@@ -27,6 +27,8 @@ val none : SourceFile.t -> t
 val dummy : t
 (** Dummy location with no source file *)
 
+val is_dummy : t -> bool
+
 val pp : Format.formatter -> t -> unit
 (** Pretty print a location. *)
 

@@ -14,6 +14,7 @@ module BaseStack = PulseBaseStack
 module Decompiler = PulseDecompiler
 module DecompilerExpr = PulseDecompilerExpr
 module PathContext = PulsePathContext
+module FullTrace = PulseFullTrace
 
 (** Layer on top of {!BaseDomain} to propagate operations on the current state to the pre-condition
     when necessary
@@ -51,6 +52,7 @@ type t = private
   ; need_specialization: bool
         (** a call that could be resolved via analysis-time specialization has been skipped *)
   ; skipped_calls: SkippedCalls.t  (** metadata: procedure calls for which no summary was found *)
+  ; full_trace: FullTrace.t  (** full trace of each executed line number *)
   }
 [@@deriving equal, yojson_of]
 
@@ -226,6 +228,9 @@ val find_post_cell_opt : AbstractValue.t -> t -> BaseDomain.cell option
 
 val get_unreachable_attributes : t -> AbstractValue.t list
 (** collect the addresses that have attributes but are unreachable in the current post-condition *)
+
+val add_new_trace_loc : t -> Location.t -> t
+(** Add a new location to the full trace of this domain. *)
 
 val add_skipped_call : Procname.t -> Trace.t -> t -> t
 

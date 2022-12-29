@@ -40,3 +40,5 @@ type summary = AbductiveDomain.Summary.t base_t [@@deriving compare, equal, yojs
 val pp_summary : F.formatter -> summary -> unit
 
 val to_name : 'a base_t -> string
+
+val add_new_trace_loc : AbductiveDomain.t base_t -> Location.t -> AbductiveDomain.t base_t
