@@ -86,6 +86,9 @@ let analyze_target : (TaskSchedulerTypes.target, string) Tasks.doer =
 
 let source_file_should_be_analyzed ~changed_files source_file =
   (* whether [fname] is one of the [changed_files] *)
+  (* L.debug_dev "source file is %a\n" SourceFile.pp source_file; *)
+  (* let () = List.iter changed_files ~f:(L.debug_dev "changed_file %s\n") in *)
+  (* let () = Option.iter changed_files ~f:(L.debug_dev "changed_file %a\n" SourceFile.pp) in *)
   let is_changed_file = Option.map changed_files ~f:(SourceFile.Set.mem source_file) in
   let check_modified () =
     let modified = SourceFiles.is_freshly_captured source_file in
