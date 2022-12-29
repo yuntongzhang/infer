@@ -20,6 +20,8 @@ let none file = {line= -1; col= -1; file}
 
 let dummy = none (SourceFile.invalid __FILE__)
 
+let is_dummy {file} = SourceFile.is_invalid file
+
 let pp_line f loc = F.fprintf f "line %d" loc.line
 
 (** Pretty print a location *)

@@ -41,3 +41,5 @@ val is_unsat_cheap : t -> bool
 (** see {!PulsePathCondition.is_unsat_cheap} *)
 
 type summary = AbductiveDomain.summary base_t [@@deriving compare, equal, yojson_of]
+
+val add_new_trace_loc : AbductiveDomain.t base_t -> Location.t -> AbductiveDomain.t base_t

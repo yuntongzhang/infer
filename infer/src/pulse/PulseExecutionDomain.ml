@@ -125,3 +125,32 @@ let exceptional_to_normal : t -> t = function
       ContinueProgram astate
   | x ->
       x
+
+
+(** Do not export this. Update the inner AbductiveDomain without changing anything else. *)
+(* let update_astate (exec_state: t) (new_astate: AbductiveDomain.t) : t =
+  (* let new_astate_summary = (new_astate :> AbductiveDomain.summary) in
+      *)
+  let new_astate_summary = new_astate in
+  match exec_state with
+  | ContinueProgram _ -> ContinueProgram new_astate
+  | ExceptionRaised _ -> ExceptionRaised new_astate
+  | ExitProgram _ ->     ExitProgram new_astate_summary
+  | AbortProgram _ ->    AbortProgram new_astate_summary
+  | ISLLatentMemoryError _ -> ISLLatentMemoryError new_astate_summary
+  | LatentAbortProgram latent_abort ->
+      LatentAbortProgram {latent_abort with astate=new_astate_summary}
+  | LatentInvalidAccess latent_invalid_access ->
+      LatentInvalidAccess {latent_invalid_access with astate=new_astate_summary} *)
+
+
+let add_new_trace_loc exec_state location =
+  match exec_state with
+  | ContinueProgram astate ->
+      let new_astate = AbductiveDomain.add_new_trace_loc astate location in
+      ContinueProgram new_astate
+  | ExceptionRaised astate ->
+      let new_astate = AbductiveDomain.add_new_trace_loc astate location in
+      ExceptionRaised new_astate
+  (** For state where summary is already extracted, there is no need to record exec trace anymore. *)
+  | _ -> exec_state

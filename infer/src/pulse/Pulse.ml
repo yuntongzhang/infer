@@ -800,6 +800,9 @@ module PulseTransferFunctions = struct
     let astates, path, astate_n =
       exec_instr_aux path astate astate_n analysis_data cfg_node instr
     in
+    (* Records the executed line number in all disjuncts. *)
+    let location = Sil.location_of_instr instr in
+    let astates = List.map astates ~f:(fun exec_state -> ExecutionDomain.add_new_trace_loc exec_state location) in
     (* Sometimes instead of stopping on contradictions a false path condition is recorded
        instead. Prune these early here so they don't spuriously count towards the disjunct limit. *)
     ( List.filter_map astates ~f:(fun exec_state ->

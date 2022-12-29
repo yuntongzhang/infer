@@ -16,6 +16,7 @@ module BaseAddressAttributes = PulseBaseAddressAttributes
 module Decompiler = PulseDecompiler
 module PathContext = PulsePathContext
 module UninitBlocklist = PulseUninitBlocklist
+module FullTrace = PulseFullTrace
 
 (** signature common to the "normal" [Domain], representing the post at the current program point,
     and the inverted [PreDomain], representing the inferred pre-condition*)
@@ -105,16 +106,18 @@ type t =
   ; decompiler: (Decompiler.t[@yojson.opaque] [@equal.ignore] [@compare.ignore])
   ; topl: (PulseTopl.state[@yojson.opaque])
   ; need_specialization: bool
-  ; skipped_calls: SkippedCalls.t }
+  ; skipped_calls: SkippedCalls.t
+  ; full_trace: FullTrace.t }
 [@@deriving compare, equal, yojson_of]
 
-let pp f {post; pre; path_condition; decompiler; need_specialization; topl; skipped_calls} =
+let pp f {post; pre; path_condition; decompiler; need_specialization; topl; skipped_calls; full_trace} =
   let pp_decompiler f =
     if Config.debug_level_analysis >= 3 then F.fprintf f "decompiler=%a;@;" Decompiler.pp decompiler
   in
-  F.fprintf f "@[<v>%a@;%a@;PRE=[%a]@;%tneed_specialization=%b@;skipped_calls=%a@;Topl=%a@]"
+  F.fprintf f "@[<v>%a@;%a@;PRE=[%a]@;%tneed_specialization=%b@;skipped_calls=%a@;Topl=%a@;full_trace=%a@]"
     PathCondition.pp path_condition PostDomain.pp post PreDomain.pp pre pp_decompiler
     need_specialization SkippedCalls.pp skipped_calls PulseTopl.pp_state topl
+    FullTrace.pp full_trace
 
 
 let set_path_condition path_condition astate = {astate with path_condition}
@@ -198,7 +201,8 @@ module Stack = struct
             ; decompiler= astate.decompiler
             ; need_specialization= astate.need_specialization
             ; topl= astate.topl
-            ; skipped_calls= astate.skipped_calls }
+            ; skipped_calls= astate.skipped_calls
+            ; full_trace= astate.full_trace }
           , addr_hist )
     in
     let astate =
@@ -519,7 +523,8 @@ module Memory = struct
             ; decompiler= astate.decompiler
             ; need_specialization= astate.need_specialization
             ; topl= astate.topl
-            ; skipped_calls= astate.skipped_calls }
+            ; skipped_calls= astate.skipped_calls
+            ; full_trace= astate.full_trace }
           , addr_hist_dst )
     in
     let astate =
@@ -681,7 +686,8 @@ let mk_initial tenv proc_desc =
     ; decompiler= Decompiler.empty
     ; need_specialization= false
     ; topl= PulseTopl.start ()
-    ; skipped_calls= SkippedCalls.empty }
+    ; skipped_calls= SkippedCalls.empty
+    ; full_trace= (FullTrace.initialize location) }
   in
   let apply_aliases astate =
     (* If a function is alias-specialized, then we want to make sure all the captured
@@ -725,6 +731,12 @@ let mk_initial tenv proc_desc =
         ; post= PostDomain.update ~heap:post_heap post }
   in
   apply_aliases astate
+
+
+let add_new_trace_loc astate location =
+  let old_trace = astate.full_trace in
+  let new_trace = FullTrace.add_next_loc old_trace location in
+  {astate with full_trace=new_trace}
 
 
 let add_skipped_call pname trace astate =
