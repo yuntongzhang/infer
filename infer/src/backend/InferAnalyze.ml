@@ -109,6 +109,9 @@ let analyze_target : (TaskSchedulerTypes.target, string) Tasks.doer =
 
 let source_file_should_be_analyzed ~changed_files source_file =
   (* whether [fname] is one of the [changed_files] *)
+  (* L.debug_dev "source file is %a\n" SourceFile.pp source_file; *)
+  (* let () = List.iter changed_files ~f:(L.debug_dev "changed_file %s\n") in *)
+  (* let () = Option.iter changed_files ~f:(L.debug_dev "changed_file %a\n" SourceFile.pp) in *)
   let is_changed_file =
     if Config.suffix_match_changed_files then
       let path_ends_with file =
