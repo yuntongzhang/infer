@@ -394,3 +394,26 @@ module Normalizer = HashNormalizer.Make (struct
         let path' = string_normalize path in
         if phys_equal path path' then fname else HashedBuckOut path'
 end)
+
+
+let read_config_pulse_fix_file =
+  match Config.pulse_fix_file with
+  | None -> None
+  | Some file -> (
+      let sf = create file in
+      (* debug*)
+      (* let sf_se = Sqlite3.Data.to_string (SQLite.serialize sf) in
+      let () = match sf_se with
+      | None -> ()
+      | Some str -> L.debug_dev "serealized fix file is %s\n" str ;
+      in *)
+      let init_set = Set.empty in
+      Some (Set.add sf init_set)
+  )
+
+
+let read_fix_file_and_changed_file =
+  if Config.pulse_fix_mode then
+    read_config_pulse_fix_file
+  else
+    read_config_changed_files ()

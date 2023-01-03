@@ -126,10 +126,7 @@ let of_posts tenv proc_desc err_log location posts =
         ~continue_program:(fun astate -> ContinueProgram astate)
       |> SatUnsat.sat )
   in
-  let () = match Config.pulse_function_only with
-    | None -> () (* function-only not specified - assume doing normal error checking *)
-    | _ -> write_summary_and_posts_json posts summary_labels
-  in
+  if Config.pulse_fix_mode then write_summary_and_posts_json posts summary_labels ;
   let filtered_summary_labels = List.filter_map summary_labels ~f:(fun x -> x) in
   List.map filtered_summary_labels ~f:fst
 

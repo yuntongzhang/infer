@@ -529,7 +529,11 @@ val project_root : string
 
 val pulse_cut_to_one_path_procedures_pattern : Str.regexp option
 
-val pulse_function_only : string option
+val pulse_fix_mode : bool
+
+val pulse_fix_file : string option
+
+val pulse_fix_function : string option
 
 val pulse_inline_global_init_func_pointer : bool
 
