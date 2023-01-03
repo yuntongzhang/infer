@@ -1047,15 +1047,9 @@ let initial tenv proc_name proc_attrs =
 let should_analyze proc_desc =
   let proc_name = Procdesc.get_proc_name proc_desc in
   let proc_id = Procname.to_unique_id proc_name in
-  let only_func_name = Config.pulse_function_only in
-  let should_analyze_only_func = match only_func_name with
-    | None -> true (* option not specified - should analyze everything *)
-    | Some f -> String.equal (Procname.get_method proc_name) f
-  in
   let f regex = not (Str.string_match regex proc_id 0) in
   Option.value_map Config.pulse_skip_procedures ~f ~default:true
   && not (Procdesc.is_too_big Pulse ~max_cfg_size:Config.pulse_max_cfg_size proc_desc)
-  && should_analyze_only_func
 
 
 let exit_function analysis_data location posts non_disj_astate =

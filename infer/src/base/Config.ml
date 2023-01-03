@@ -2229,10 +2229,22 @@ and pulse_force_continue =
      positives. It is intended to be used for debugging, to quickly assess if a false negative may \
      be caused by lack of coverage."
 
-and pulse_function_only =
-  CLOpt.mk_string_opt ~long:"pulse-function-only"
+and pulse_fix_file =
+  CLOpt.mk_string_opt ~long:"pulse-fix-file"
     ~in_help:InferCommand.[(Analyze, manual_generic)]
-    "Method name to tell Pulse only to analyze this ONE function."
+    "File in which a fix should be applied. Should be used together with $(b, --pulse-fix-function)."
+
+
+and pulse_fix_function =
+  CLOpt.mk_string_opt ~long:"pulse-fix-function"
+    ~in_help:InferCommand.[(Analyze, manual_generic)]
+    "Function in which a fix should be applied. Should be used together with $(b, --pulse-fix-file)."
+
+
+and pulse_fix_mode =
+  CLOpt.mk_bool ~long:"pulse-fix-mode" ~default:false
+    "Enable fix mode for Pulse. Need also $(b, --pulse-fix-file) and $(b, --pulse-fix-function)."
+
 
 and pulse_inline_global_init_func_pointer =
   CLOpt.mk_bool ~long:"pulse-inline-global-init-func-pointer" ~default:false
@@ -3938,8 +3950,11 @@ and project_root = !project_root
 and pulse_cut_to_one_path_procedures_pattern =
   Option.map ~f:Str.regexp !pulse_cut_to_one_path_procedures_pattern
 
+and pulse_fix_mode = !pulse_fix_mode
 
-and pulse_function_only = !pulse_function_only
+and pulse_fix_file = !pulse_fix_file
+
+and pulse_fix_function = !pulse_fix_function
 
 and pulse_inline_global_init_func_pointer = !pulse_inline_global_init_func_pointer
 

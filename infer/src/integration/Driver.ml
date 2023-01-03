@@ -337,6 +337,7 @@ let analyze_and_report ~changed_files mode =
     | (Analyze | Run), _ ->
         (true, true)
   in
+  let should_report = should_report && not (Config.pulse_fix_mode) in
   let should_analyze = should_analyze && Config.capture in
   if should_analyze then
     if SourceFiles.is_empty () && Config.capture then error_nothing_to_analyze mode

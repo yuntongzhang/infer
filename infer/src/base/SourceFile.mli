@@ -27,9 +27,8 @@ val read_config_changed_files : unit -> Set.t option
 (** return the list of changed files as read from Config.changed_files_index. NOTE: it may include
     extra source_files if --changed-files-index contains paths to header files. *)
 
-val read_config_files_to_analyze : unit -> Set.t option
-(** return the list of files as read from Config.files_to_analyze_index. NOTE: it may include extra
-    source_files if --changed-files-index contains paths to header files. *)
+val read_fix_file_and_changed_file : Set.t option
+(** First attempt to read value from --pulse-fix-file, then read from changed-file-index if failed.*)
 
 val invalid : string -> t
 (** Invalid source file *)

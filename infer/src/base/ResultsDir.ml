@@ -136,6 +136,13 @@ let scrub_for_incremental () =
        ~results_dir:Config.results_dir )
 
 
+let scrub_for_fix_mode () =
+  List.iter ~f:Utils.rmtree
+    (ResultsDirEntryName.to_delete_before_incremental_capture_and_analysis
+       ~results_dir:Config.results_dir ) ;
+  ()
+
+
 let scrub_for_caching () =
   let cache_capture = Config.genrule_mode || Option.exists Config.buck_mode ~f:BuckMode.is_clang in
   if cache_capture then DBWriter.canonicalize () ;
