@@ -76,9 +76,64 @@ let realloc_common allocator pointer size : model =
 
 let realloc = realloc_common CRealloc
 
+
+let calloc _n size = 
+  let ikind = Typ.IUInt in
+  let size_expr = Exp.BinOp (Binop.Mult (Some ikind), _n, size) in
+  alloc_common CCalloc ~size_exp_opt:(Some size_expr)
+
+
 let custom_realloc pointer size data astate =
   realloc_common (CustomRealloc data.callee_procname) pointer size data astate
 
+
+let strncpy (dest_addr,(dest_hist: ValueHistory.t)) _ _ : model =
+  fun {location; ret= ret_id, _} astate ->
+  let ret_value =
+    (dest_addr, (ValueHistory.epoch))
+  in
+  let astate = PulseOperations.write_id ret_id ret_value astate in
+  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  |> List.map ~f:(fun result ->
+      let+ astate = result in
+      ContinueProgram astate )
+
+
+let strcpy (dest_addr,dest_hist) _ : model =
+  fun {location; ret= ret_id, _} astate ->
+  let ret_value =
+    (dest_addr, (ValueHistory.epoch))
+  in
+  let astate = PulseOperations.write_id ret_id ret_value astate in
+  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  |> List.map ~f:(fun result ->
+      let+ astate = result in
+      ContinueProgram astate )
+
+
+let strlen (dest_addr,dest_hist) : model =
+  fun {location; ret= ret_id, _} astate ->
+  let ret_value =
+    (dest_addr, (ValueHistory.epoch))
+  in
+  let astate = PulseOperations.write_id ret_id ret_value astate in
+  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  |> List.map ~f:(fun result ->
+      let+ astate = result in
+      ContinueProgram astate )
+
+
+let memset (dest_addr,dest_hist) _ _ : model =
+  fun {location;  ret= ret_id,_} astate ->
+  let ret_value =
+    (dest_addr, (ValueHistory.epoch))
+  in
+  let astate = PulseOperations.write_id ret_id ret_value astate in
+  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  |> List.map ~f:(fun result ->
+      let+ astate = result in
+      ContinueProgram astate )
+    
 
 let matchers : matcher list =
   let open ProcnameDispatcher.Call in
@@ -92,7 +147,15 @@ let matchers : matcher list =
   ; +match_regexp_opt Config.pulse_model_free_pattern <>$ capt_arg $+...$--> free
   ; +BuiltinDecl.(match_builtin malloc) <>$ capt_exp $--> malloc
   ; +match_regexp_opt Config.pulse_model_malloc_pattern <>$ capt_exp $+...$--> custom_malloc
+  ; -"calloc" <>$ capt_exp $+ capt_exp $--> calloc
   ; -"realloc" <>$ capt_arg $+ capt_exp $--> realloc
+  ; -"strncpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  ; -"strcpy" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
+  ; -"strchr" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
+  ; -"memcpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  ; -"memmove" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  ; -"strlen" <>$ capt_arg_payload $+...$--> strlen
+  ; -"memset" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> memset
   ; +match_regexp_opt Config.pulse_model_realloc_pattern
     <>$ capt_arg $+ capt_exp $+...$--> custom_realloc
   ; +map_context_tenv PatternMatch.ObjectiveC.is_core_graphics_create_or_copy

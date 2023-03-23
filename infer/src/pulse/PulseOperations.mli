@@ -347,3 +347,12 @@ val get_captured_actuals :
   -> actuals:((AbstractValue.t * ValueHistory.t) * Typ.t) list
   -> t
   -> (t * ((AbstractValue.t * ValueHistory.t) * Typ.t) list) AccessResult.t
+
+val check_and_abduce_addr_access_isl :
+     PathContext.t 
+  -> access_mode 
+  -> Location.t 
+  -> BaseMemory.key * ValueHistory.t 
+  -> ?null_noop:bool 
+  -> t 
+  -> (t, base_error) pulse_result list
