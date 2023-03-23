@@ -21,6 +21,7 @@ module Attribute = struct
   type allocator =
     | CMalloc
     | CustomMalloc of Procname.t
+    | CCalloc
     | CRealloc
     | CustomRealloc of Procname.t
     | CppNew
@@ -35,6 +36,8 @@ module Attribute = struct
         F.fprintf fmt "malloc"
     | CustomMalloc proc_name ->
         F.fprintf fmt "%a (custom malloc)" Procname.pp proc_name
+    | CCalloc ->
+        F.fprintf fmt "calloc"
     | CRealloc ->
         F.fprintf fmt "realloc"
     | CustomRealloc proc_name ->
@@ -524,7 +527,7 @@ module Attribute = struct
 
   let alloc_free_match allocator (invalidation : (Invalidation.t * Trace.t) option) is_released =
     match (allocator, invalidation) with
-    | (CMalloc | CustomMalloc _ | CRealloc | CustomRealloc _), Some (CFree, _)
+    | (CMalloc | CustomMalloc _ | CCalloc | CRealloc | CustomRealloc _), Some (CFree, _)
     | CppNew, Some (CppDelete, _)
     | CppNewArray, Some (CppDeleteArray, _)
     | ObjCAlloc, _ ->

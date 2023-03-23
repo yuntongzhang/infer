@@ -19,6 +19,7 @@ module ValueHistory = PulseValueHistory
 type allocator =
   | CMalloc
   | CustomMalloc of Procname.t
+  | CCalloc
   | CRealloc
   | CustomRealloc of Procname.t
   | CppNew

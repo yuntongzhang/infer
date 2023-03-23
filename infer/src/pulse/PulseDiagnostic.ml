@@ -904,7 +904,7 @@ let get_issue_type ~latent issue_type =
       IssueType.no_matching_branch_in_try ~latent
   | MemoryLeak {allocator}, false -> (
     match allocator with
-    | CMalloc | CustomMalloc _ | CRealloc | CustomRealloc _ ->
+    | CMalloc | CustomMalloc _ | CCalloc | CRealloc | CustomRealloc _ ->
         IssueType.pulse_memory_leak_c
     | CppNew | CppNewArray ->
         IssueType.pulse_memory_leak_cpp
