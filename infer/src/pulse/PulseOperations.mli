@@ -289,3 +289,12 @@ val check_used_as_branch_cond :
   -> AbductiveDomain.t AccessResult.t
 (** Check and report config usage issue on the abstract value that is used as branch condition. If
     it is not certain that tha abstract value is a config, it adds [UsedAsBranchCond] attribute. *)
+
+val check_and_abduce_addr_access_isl :
+     PathContext.t 
+  -> access_mode 
+  -> Location.t 
+  -> BaseMemory.key * ValueHistory.t 
+  -> ?null_noop:bool 
+  -> t 
+  -> (t, base_error) pulse_result list
