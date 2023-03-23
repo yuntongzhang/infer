@@ -521,7 +521,7 @@ let get_issue_type ~latent issue_type =
   match (issue_type, latent) with
   | MemoryLeak {allocator}, false -> (
     match allocator with
-    | CMalloc | CustomMalloc _ | CRealloc | CustomRealloc _ ->
+    | CMalloc | CustomMalloc _ | CCalloc | CRealloc | CustomRealloc _ ->
         IssueType.pulse_memory_leak_c
     | CppNew | CppNewArray ->
         IssueType.pulse_memory_leak_cpp
