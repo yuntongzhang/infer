@@ -121,15 +121,8 @@ let force_exit_program tenv proc_desc err_log post =
     | Sat inner -> Sat (fst inner)
 
 
-let write_summary_and_posts_json (posts : ExecutionDomain.t list) summary_labels =
-  let ok_states_from_posts = List.map posts ~f:(fun exec_astate ->
-    match exec_astate with
-    | ContinueProgram astate -> Some astate
-    | _                      -> None
-  )
-  in
-  (* Note that, here, ContinueProgram in exec_astate may still have error *)
-  let summary_posts = SummaryPost.from_lists_of_states_and_summaries ok_states_from_posts summary_labels in
+let write_summary_and_posts_json summary_labels =
+  let summary_posts = SummaryPost.from_lists_of_summaries summary_labels in
   let json_summary_posts = [%yojson_of: SummaryPost.t] summary_posts in
   let f_json json_content fname = Yojson.Safe.to_file fname json_content;
     (* Yojson.Safe.to_channel stdout json_content;
@@ -146,7 +139,7 @@ let of_posts tenv proc_desc err_log location posts =
         ~continue_program:(fun astate -> ContinueProgram astate)
       |> SatUnsat.sat )
   in
-  if Config.pulse_fix_mode then write_summary_and_posts_json posts summary_labels ;
+  if Config.pulse_fix_mode then write_summary_and_posts_json summary_labels ;
   let filtered_summary_labels = List.filter_map summary_labels ~f:(fun x -> x) in
   List.map filtered_summary_labels ~f:fst
 

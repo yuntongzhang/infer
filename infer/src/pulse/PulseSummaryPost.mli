@@ -19,11 +19,10 @@ type label =
  | ErrorOthers
  [@@deriving yojson_of]
 
-type summary_post = (label * (AbductiveDomain.t option)) [@@deriving yojson_of]
+type summary_post = (label * (ExecutionDomain.summary) option) [@@deriving yojson_of]
 
 type t = summary_post list [@@deriving yojson_of]
 
-val from_lists_of_states_and_summaries : 
-        (AbductiveDomain.t option) list
-    ->  (AbductiveDomain.summary ExecutionDomain.base_t * label) option list
+val from_lists_of_summaries : 
+    (AbductiveDomain.summary ExecutionDomain.base_t * label) option list
     ->  t
