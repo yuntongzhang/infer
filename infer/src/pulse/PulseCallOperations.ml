@@ -239,7 +239,7 @@ let apply_callee tenv ({PathContext.timestamp} as path) ~caller_proc_desc callee
          ready to be accessed by the exception handler. *)
       map_call_result astate ~f:(fun return_val_opt _subst astate ->
           Sat (copy_to_caller_return_variable astate return_val_opt) )
-  | AbortProgram astate
+  | AbortProgram {astate}
   | ExitProgram astate
   | LatentAbortProgram {astate}
   | LatentInvalidAccess {astate} ->
@@ -256,9 +256,9 @@ let apply_callee tenv ({PathContext.timestamp} as path) ~caller_proc_desc callee
           match callee_exec_state with
           | ContinueProgram _ | ExceptionRaised _ ->
               assert false
-          | AbortProgram _ ->
+          | AbortProgram {error_trace_start} ->
               (* bypass the current errors to avoid compounding issues *)
-              Sat (Ok (AbortProgram astate_summary))
+              Sat (Ok (AbortProgram {astate=astate_summary; error_trace_start}))
           | ExitProgram _ ->
               Sat (Ok (ExitProgram astate_summary))
           | LatentAbortProgram {latent_issue} -> (

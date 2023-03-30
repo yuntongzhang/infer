@@ -1,25 +1,25 @@
 open! IStd
 module F = Format
 module L = Logging
-open PulseBasicInterface
 open PulseDomainInterface
 
 type label = 
  | Ok
- | AbortProgram 
- | ExitProgram
- | LatentAbortProgram
- | LatentInvalidAccess
- | ISLLatentMemoryError
+ (* Some "sure" NPE will be this case, in single-function analysis *)
+ | AbortProgram of int
+ | ExitProgram of int
+ | LatentAbortProgram of int
+ | LatentInvalidAccess of int
+ | ISLLatentMemoryError of int
  | ErrorRetainCycle
- | ErrorMemoryLeak
+ | ErrorMemoryLeak of int
  | ErrorResourceLeak
- | ErrorInvalidAccess
+ | ErrorInvalidAccess of int
  | ErrorException
  | ErrorOthers
  [@@deriving yojson_of]
 
-type summary_post = (label * (ExecutionDomain.summary) option) [@@deriving yojson_of]
+type summary_post = (label * (AbductiveDomain.summary) option) [@@deriving yojson_of]
 
 type t = summary_post list [@@deriving yojson_of]
 

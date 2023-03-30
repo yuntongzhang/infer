@@ -244,6 +244,8 @@ val unset_need_specialization : t -> t
 
 val map_decompiler : t -> f:(Decompiler.t -> Decompiler.t) -> t
 
+val get_last_line_in_trace: summary -> int
+
 val set_post_edges : AbstractValue.t -> BaseMemory.Edges.t -> t -> t
 (** directly set the edges for the given address, bypassing abduction altogether *)
 

@@ -119,7 +119,7 @@ module PulseTransferFunctions = struct
             need_specialization
         | Some
             ( ExitProgram astate
-            | AbortProgram astate
+            | AbortProgram {astate}
             | LatentAbortProgram {astate}
             | LatentInvalidAccess {astate} ) ->
             AbductiveDomain.Summary.need_specialization astate
@@ -140,9 +140,9 @@ module PulseTransferFunctions = struct
             | ExitProgram astate ->
                 let astate = AbductiveDomain.Summary.with_need_specialization astate in
                 ExitProgram astate
-            | AbortProgram astate ->
-                let astate = AbductiveDomain.Summary.with_need_specialization astate in
-                AbortProgram astate
+            | AbortProgram abort_program ->
+                let astate = AbductiveDomain.Summary.with_need_specialization abort_program.astate in
+                AbortProgram {abort_program with astate}
             | LatentAbortProgram latent_abort_program ->
                 let astate =
                   AbductiveDomain.Summary.with_need_specialization latent_abort_program.astate

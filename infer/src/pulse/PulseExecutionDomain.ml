@@ -21,7 +21,7 @@ type 'abductive_domain_t base_t =
   | ContinueProgram of 'abductive_domain_t
   | ExceptionRaised of 'abductive_domain_t
   | ExitProgram of AbductiveDomain.Summary.t
-  | AbortProgram of AbductiveDomain.Summary.t
+  | AbortProgram of {astate: AbductiveDomain.Summary.t; error_trace_start: Location.t}
   | LatentAbortProgram of {astate: AbductiveDomain.Summary.t; latent_issue: LatentIssue.t}
   | LatentInvalidAccess of
       { astate: AbductiveDomain.Summary.t
@@ -38,7 +38,7 @@ let leq ~lhs ~rhs =
   phys_equal lhs rhs
   ||
   match (lhs, rhs) with
-  | AbortProgram astate1, AbortProgram astate2 | ExitProgram astate1, ExitProgram astate2 ->
+  | AbortProgram {astate=astate1}, AbortProgram {astate=astate2} | ExitProgram astate1, ExitProgram astate2 ->
       AbductiveDomain.Summary.leq ~lhs:astate1 ~rhs:astate2
   | ExceptionRaised astate1, ExceptionRaised astate2
   | ContinueProgram astate1, ContinueProgram astate2 ->
@@ -54,7 +54,7 @@ let leq ~lhs ~rhs =
 
 
 let pp_ pp_abductive_domain_t fmt = function
-  | AbortProgram astate ->
+  | AbortProgram {astate} ->
       F.fprintf fmt "{AbortProgram %a}" AbductiveDomain.Summary.pp astate
   | ContinueProgram astate ->
       pp_abductive_domain_t fmt astate
@@ -83,7 +83,7 @@ let equal_fast exec_state1 exec_state2 =
   phys_equal exec_state1 exec_state2
   ||
   match (exec_state1, exec_state2) with
-  | AbortProgram astate1, AbortProgram astate2 | ExitProgram astate1, ExitProgram astate2 ->
+  | AbortProgram {astate=astate1}, AbortProgram {astate=astate2} | ExitProgram astate1, ExitProgram astate2 ->
       phys_equal astate1 astate2
   | ContinueProgram astate1, ContinueProgram astate2 ->
       phys_equal astate1 astate2

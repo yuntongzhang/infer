@@ -1,27 +1,26 @@
 open! IStd
 module F = Format
 module L = Logging
-open PulseBasicInterface
 open PulseDomainInterface
-
-module ExecutionDomain = PulseExecutionDomain
 
 type label =
   | Ok
-  | AbortProgram
-  | ExitProgram
-  | LatentAbortProgram
-  | LatentInvalidAccess
-  | ISLLatentMemoryError
+  (* for these 5, summary was already there. Take the initial point in their error trace. *)
+  | AbortProgram of int
+  | ExitProgram of int
+  | LatentAbortProgram of int
+  | LatentInvalidAccess of int
+  | ISLLatentMemoryError of int
   | ErrorRetainCycle
-  | ErrorMemoryLeak
+  (* For leak and NPE, we have real "error" trace. So take the initial point of that trace. *)
+  | ErrorMemoryLeak of int
   | ErrorResourceLeak
-  | ErrorInvalidAccess
+  | ErrorInvalidAccess of int
   | ErrorException
   | ErrorOthers
 [@@deriving yojson_of]
 
-type summary_post = (label * (ExecutionDomain.summary) option) [@@deriving yojson_of]
+type summary_post = (label * (AbductiveDomain.summary) option) [@@deriving yojson_of]
 
 type t = summary_post list [@@deriving yojson_of]
 
@@ -29,7 +28,18 @@ type t = summary_post list [@@deriving yojson_of]
 let construct_summary_post (summary_label : (AbductiveDomain.summary ExecutionDomain.base_t * label) option) =
   match summary_label with
     | None -> (ErrorException, None) (* None summary means exception happened*)
-    | Some (summary, label) -> (label, Some summary)
+    | Some (summary, label) -> 
+      (* The meta data in summary is already captured by labels;
+         strip those and standardize the format of summary. *)
+      match summary with
+      | ContinueProgram astate
+      | ExceptionRaised astate
+      | ExitProgram astate
+      | AbortProgram {astate; _}
+      | LatentAbortProgram {astate; _ }
+      | LatentInvalidAccess {astate; _; }
+      | ISLLatentMemoryError astate ->
+        label, Some astate
 
 
 let from_lists_of_summaries summary_labels =

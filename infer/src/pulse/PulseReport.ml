@@ -230,11 +230,16 @@ let report_summary_error tenv proc_desc err_log ((access_error : AccessResult.er
         is_suppressed tenv proc_desc ~is_nullptr_dereference ~is_constant_deref_without_invalidation
           summary
       in
+      let error_trace = Diagnostic.get_trace diagnostic in
+      let error_trace_start = match error_trace with
+        | hd :: _ -> hd.lt_loc
+        | [] -> Location.dummy
+      in
       match LatentIssue.should_report summary diagnostic with
       | `ReportNow ->
           if is_suppressed then L.d_printfln "ReportNow suppressed error" ;
           report ~latent:false ~is_suppressed proc_desc err_log diagnostic ;
-          if Diagnostic.aborts_execution diagnostic then Some (AbortProgram summary) else None
+          if Diagnostic.aborts_execution diagnostic then Some (AbortProgram {astate=summary; error_trace_start}) else None
       | `DelayReport latent_issue ->
           if is_suppressed then L.d_printfln "DelayReport suppressed error" ;
           if Config.pulse_report_latent_issues then

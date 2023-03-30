@@ -22,5 +22,11 @@ let add_next_loc trace (loc: Location.t) =
           List.rev (new_line :: rev_lines)
 
 
+let get_last_loc trace =
+  match List.rev trace with
+  | [] -> None
+  | last_line :: _ -> Some last_line
+
+
 let pp fmt (trace: t) =
   F.pp_print_list Int.pp fmt trace
