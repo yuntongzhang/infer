@@ -1379,6 +1379,10 @@ let summary_of_post tenv pdesc location astate0 =
         (`PotentialInvalidAccessSummary
           (astate, Decompiler.find address astate0.decompiler, must_be_valid) )
 
+let get_last_line_in_trace abductive_summary =
+  let trace = abductive_summary.full_trace in
+  let line_num = FullTrace.get_last_loc trace in
+  Option.value line_num ~default:0
 
 let get_pre {pre} = (pre :> BaseDomain.t)
 

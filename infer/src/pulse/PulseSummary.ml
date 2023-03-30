@@ -43,8 +43,9 @@ let exec_summary_of_post_common tenv ~continue_program proc_desc err_log locatio
           let real_summary = PulseReport.report_summary_error tenv proc_desc err_log
             (ReportableErrorSummary
                {astate; diagnostic= MemoryLeak {allocator; allocation_trace; location}} )
-          |> Option.value ~default:(ExecutionDomain.ContinueProgram astate)
-          in real_summary, SummaryPost.ErrorMemoryLeak
+          |> Option.value ~default:(ExecutionDomain.ContinueProgram astate) in
+          let err_trace_start = (Trace.get_start_location allocation_trace).line
+          in real_summary, (SummaryPost.ErrorMemoryLeak err_trace_start)
       | Error (`ResourceLeak (astate, class_name, allocation_trace, location)) ->
           let real_summary = PulseReport.report_summary_error tenv proc_desc err_log
             (ReportableErrorSummary
@@ -61,8 +62,10 @@ let exec_summary_of_post_common tenv ~continue_program proc_desc err_log locatio
           |> Option.bind ~f:(fun (_, attrs) -> Attributes.get_invalid attrs)
         with
         | None ->
-            let real_summary = ExecutionDomain.LatentInvalidAccess {astate; address; must_be_valid; calling_context= []}
-            in real_summary, SummaryPost.LatentInvalidAccess
+            let real_summary = ExecutionDomain.LatentInvalidAccess {astate; address; must_be_valid; calling_context= []} in
+            let trace, _ = must_be_valid in
+            let trace_start_line = (Trace.get_start_location trace).line in
+            real_summary, (SummaryPost.LatentInvalidAccess trace_start_line)
         | Some (invalidation, invalidation_trace) ->
             (* NOTE: this probably leads to the error being dropped as the access trace is unlikely to
                contain the reason for invalidation and thus we will filter out the report. TODO:
@@ -78,19 +81,26 @@ let exec_summary_of_post_common tenv ~continue_program proc_desc err_log locatio
                        ; access_trace= fst must_be_valid
                        ; must_be_valid_reason= snd must_be_valid }
                  ; astate } )
-            |> Option.value ~default:(ExecutionDomain.ContinueProgram astate)
-            in real_summary, SummaryPost.ErrorInvalidAccess ) )
+            |> Option.value ~default:(ExecutionDomain.ContinueProgram astate) in
+            let err_trace_start = (Trace.get_start_location invalidation_trace).line
+            in real_summary, SummaryPost.ErrorInvalidAccess err_trace_start) )
   (* already a summary but need to reconstruct the variants to make the type system happy :( *)
-  | AbortProgram astate ->
-      Sat (AbortProgram astate, SummaryPost.AbortProgram)
+  | AbortProgram {astate; error_trace_start} ->
+      let trace_start_line = error_trace_start.line in
+      Sat (AbortProgram {astate; error_trace_start}, SummaryPost.AbortProgram trace_start_line)
+  (* TODO: labels below still have the wrong fields. *)
   | ExitProgram astate ->
-      Sat (ExitProgram astate, SummaryPost.ExitProgram)
+      let last_trace_line = AbductiveDomain.get_last_line_in_trace astate in
+      Sat (ExitProgram astate, SummaryPost.ExitProgram last_trace_line)
   | LatentAbortProgram {astate; latent_issue} ->
-      Sat (LatentAbortProgram {astate; latent_issue}, SummaryPost.LatentAbortProgram)
+      let last_trace_line = AbductiveDomain.get_last_line_in_trace astate in
+      Sat (LatentAbortProgram {astate; latent_issue}, SummaryPost.LatentAbortProgram last_trace_line)
   | LatentInvalidAccess {astate; address; must_be_valid; calling_context} ->
-      Sat (LatentInvalidAccess {astate; address; must_be_valid; calling_context}, SummaryPost.LatentInvalidAccess)
+      let last_trace_line = AbductiveDomain.get_last_line_in_trace astate in
+      Sat (LatentInvalidAccess {astate; address; must_be_valid; calling_context}, SummaryPost.LatentInvalidAccess last_trace_line)
   | ISLLatentMemoryError astate ->
-      Sat (ISLLatentMemoryError astate, SummaryPost.ISLLatentMemoryError)
+      let last_trace_line = AbductiveDomain.get_last_line_in_trace astate in
+      Sat (ISLLatentMemoryError astate, SummaryPost.ISLLatentMemoryError last_trace_line)
 
 
 let force_exit_program tenv proc_desc err_log post exec_state =

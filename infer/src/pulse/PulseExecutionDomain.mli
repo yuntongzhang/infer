@@ -16,7 +16,7 @@ type 'abductive_domain_t base_t =
   | ExceptionRaised of 'abductive_domain_t  (** state after an exception has been thrown *)
   | ExitProgram of AbductiveDomain.summary
       (** represents the state originating at exit/divergence. *)
-  | AbortProgram of AbductiveDomain.summary
+  | AbortProgram of {astate: AbductiveDomain.summary; error_trace_start: Location.t}
       (** represents the state at the program point that caused an error *)
   | LatentAbortProgram of {astate: AbductiveDomain.summary; latent_issue: LatentIssue.t}
       (** this path leads to an error but we don't have conclusive enough data to report it yet *)

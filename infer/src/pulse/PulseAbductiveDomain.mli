@@ -255,6 +255,8 @@ val summary_of_post :
 (** Trim the state down to just the procedure's interface (formals and globals), and simplify and
     normalize the state. *)
 
+val get_last_line_in_trace: summary -> int
+
 val set_post_edges : AbstractValue.t -> BaseMemory.Edges.t -> t -> t
 (** directly set the edges for the given address, bypassing abduction altogether *)
 

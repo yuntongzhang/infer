@@ -164,7 +164,7 @@ let apply_callee tenv ({PathContext.timestamp} as path) ~caller_proc_desc callee
   | ExceptionRaised astate ->
       map_call_result ~is_isl_error_prepost:false astate ~f:(fun _subst astate ->
           Sat (Ok (ExceptionRaised astate)) )
-  | AbortProgram astate
+  | AbortProgram {astate}
   | ExitProgram astate
   | LatentAbortProgram {astate}
   | LatentInvalidAccess {astate} ->
@@ -180,9 +180,9 @@ let apply_callee tenv ({PathContext.timestamp} as path) ~caller_proc_desc callee
           match callee_exec_state with
           | ContinueProgram _ | ExceptionRaised _ | ISLLatentMemoryError _ ->
               assert false
-          | AbortProgram _ ->
+          | AbortProgram {error_trace_start} ->
               (* bypass the current errors to avoid compounding issues *)
-              Sat (Ok (AbortProgram astate_summary))
+              Sat (Ok (AbortProgram {astate=astate_summary; error_trace_start}))
           | ExitProgram _ ->
               Sat (Ok (ExitProgram astate_summary))
           | LatentAbortProgram {latent_issue} -> (
