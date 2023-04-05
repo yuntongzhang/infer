@@ -10,6 +10,7 @@ open PulseBasicInterface
 open PulseDomainInterface
 open PulseOperations.Import
 open PulseModelsImport
+module L = Logging
 
 let free deleted_access : model = Basic.free_or_delete `Free CFree deleted_access
 
@@ -32,6 +33,7 @@ let alloc_common allocator ~size_exp_opt : model =
             (StackAddress (Var.of_id ret_id, ret_null_hist))
             location (ConstantDereference IntLit.zero) ret_null_value
     in
+    (* L.debug_dev "null branch state: %a\n" AbductiveDomain.pp astate_null; *)
     ContinueProgram astate_null
   in
   [astate_alloc; result_null]
@@ -88,48 +90,57 @@ let custom_realloc pointer size data astate =
 
 
 let strncpy (dest_addr,(dest_hist: ValueHistory.t)) _ _ : model =
-  fun {location; ret= ret_id, _} astate ->
+  fun {path; callee_procname; location; ret= ret_id, _} astate ->
+  (* let new_event = Hist.call_event path location (Procname.to_string callee_procname) in
+  let new_hist = Hist.add_event path new_event dest_hist in
   let ret_value =
-    (dest_addr, (ValueHistory.epoch))
+    (dest_addr, new_hist)
+  in *)
+  let ret_value = 
+    (dest_addr, dest_hist)
   in
+  (* L.debug_dev "PulseModels.strncpy: ret_value: %a" ValueHistory.pp new_hist; *)
   let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
+  (* let result = PulseOperations.check_addr_access path Write location (dest_addr, dest_hist) astate in
+  let+ astate = result in
+    [ ContinueProgram astate ] *)
   |> List.map ~f:(fun result ->
       let+ astate = result in
       ContinueProgram astate )
 
 
 let strcpy (dest_addr,dest_hist) _ : model =
-  fun {location; ret= ret_id, _} astate ->
+  fun {path; location; ret= ret_id, _} astate ->
   let ret_value =
-    (dest_addr, (ValueHistory.epoch))
+    (dest_addr, dest_hist)
   in
   let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
   |> List.map ~f:(fun result ->
       let+ astate = result in
       ContinueProgram astate )
 
 
 let strlen (dest_addr,dest_hist) : model =
-  fun {location; ret= ret_id, _} astate ->
+  fun {path; location; ret= ret_id, _} astate ->
   let ret_value =
     (dest_addr, (ValueHistory.epoch))
   in
   let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  PulseOperations.check_and_abduce_addr_access_isl path Read location (dest_addr,dest_hist) ~null_noop:false astate
   |> List.map ~f:(fun result ->
       let+ astate = result in
       ContinueProgram astate )
 
 
 let memset (dest_addr,dest_hist) _ _ : model =
-  fun {location;  ret= ret_id,_} astate ->
+  fun {path; location;  ret= ret_id,_} astate ->
   let ret_value =
     (dest_addr, (ValueHistory.epoch))
   in
   let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl PathContext.initial NoAccess location (dest_addr,dest_hist) ~null_noop:false astate
+  PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
   |> List.map ~f:(fun result ->
       let+ astate = result in
       ContinueProgram astate )
