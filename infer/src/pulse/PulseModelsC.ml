@@ -134,6 +134,9 @@ let strlen (dest_addr,dest_hist) : model =
       ContinueProgram astate )
 
 
+let strdup _ : model = 
+  alloc_common CMalloc ~size_exp_opt:None
+
 let memset (dest_addr,dest_hist) _ _ : model =
   fun {path; location;  ret= ret_id,_} astate ->
   let ret_value =
@@ -166,6 +169,7 @@ let matchers : matcher list =
   ; -"memcpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; -"memmove" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; -"strlen" <>$ capt_arg_payload $+...$--> strlen
+  ; -"strdup" <>$ capt_exp $--> strdup
   ; -"memset" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> memset
   ; +match_regexp_opt Config.pulse_model_realloc_pattern
     <>$ capt_arg $+ capt_exp $+...$--> custom_realloc
