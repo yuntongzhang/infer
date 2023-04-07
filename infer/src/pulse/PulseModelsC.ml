@@ -88,7 +88,7 @@ let calloc _n size =
 let custom_realloc pointer size data astate =
   realloc_common (CustomRealloc data.callee_procname) pointer size data astate
 
-
+(* 
 let strncpy (dest_addr,(dest_hist: ValueHistory.t)) _ _ : model =
   fun {path; callee_procname; location; ret= ret_id, _} astate ->
   (* let new_event = Hist.call_event path location (Procname.to_string callee_procname) in
@@ -131,13 +131,13 @@ let strlen (dest_addr,dest_hist) : model =
   PulseOperations.check_and_abduce_addr_access_isl path Read location (dest_addr,dest_hist) ~null_noop:false astate
   |> List.map ~f:(fun result ->
       let+ astate = result in
-      ContinueProgram astate )
+      ContinueProgram astate ) *)
 
 
 let strdup _ : model = 
   alloc_common CMalloc ~size_exp_opt:None
 
-let memset (dest_addr,dest_hist) _ _ : model =
+(* let memset (dest_addr,dest_hist) _ _ : model =
   fun {path; location;  ret= ret_id,_} astate ->
   let ret_value =
     (dest_addr, (ValueHistory.epoch))
@@ -146,7 +146,7 @@ let memset (dest_addr,dest_hist) _ _ : model =
   PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
   |> List.map ~f:(fun result ->
       let+ astate = result in
-      ContinueProgram astate )
+      ContinueProgram astate ) *)
     
 
 let matchers : matcher list =
@@ -163,14 +163,14 @@ let matchers : matcher list =
   ; +match_regexp_opt Config.pulse_model_malloc_pattern <>$ capt_exp $+...$--> custom_malloc
   ; -"calloc" <>$ capt_exp $+ capt_exp $--> calloc
   ; -"realloc" <>$ capt_arg $+ capt_exp $--> realloc
-  ; -"strncpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  (* ; -"strncpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; -"strcpy" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
   ; -"strchr" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
   ; -"memcpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; -"memmove" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
-  ; -"strlen" <>$ capt_arg_payload $+...$--> strlen
+  ; -"strlen" <>$ capt_arg_payload $+...$--> strlen *)
   ; -"strdup" <>$ capt_exp $--> strdup
-  ; -"memset" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> memset
+  (* ; -"memset" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> memset *)
   ; +match_regexp_opt Config.pulse_model_realloc_pattern
     <>$ capt_arg $+ capt_exp $+...$--> custom_realloc
   ; +map_context_tenv PatternMatch.ObjectiveC.is_core_graphics_create_or_copy
