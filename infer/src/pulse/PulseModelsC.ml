@@ -89,65 +89,38 @@ let custom_realloc pointer size data astate =
   realloc_common (CustomRealloc data.callee_procname) pointer size data astate
 
 
-let strncpy (dest_addr,(dest_hist: ValueHistory.t)) _ _ : model =
-  fun {path; callee_procname; location; ret= ret_id, _} astate ->
-  (* let new_event = Hist.call_event path location (Procname.to_string callee_procname) in
-  let new_hist = Hist.add_event path new_event dest_hist in
-  let ret_value =
-    (dest_addr, new_hist)
-  in *)
-  let ret_value = 
-    (dest_addr, dest_hist)
-  in
-  (* L.debug_dev "PulseModels.strncpy: ret_value: %a" ValueHistory.pp new_hist; *)
-  let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
-  (* let result = PulseOperations.check_addr_access path Write location (dest_addr, dest_hist) astate in
-  let+ astate = result in
-    [ ContinueProgram astate ] *)
-  |> List.map ~f:(fun result ->
-      let+ astate = result in
-      ContinueProgram astate )
-
-
-let strcpy (dest_addr,dest_hist) _ : model =
-  fun {path; location; ret= ret_id, _} astate ->
-  let ret_value =
-    (dest_addr, dest_hist)
-  in
-  let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
-  |> List.map ~f:(fun result ->
-      let+ astate = result in
-      ContinueProgram astate )
-
-
-let strlen (dest_addr,dest_hist) : model =
-  fun {path; location; ret= ret_id, _} astate ->
-  let ret_value =
-    (dest_addr, (ValueHistory.epoch))
-  in
-  let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl path Read location (dest_addr,dest_hist) ~null_noop:false astate
-  |> List.map ~f:(fun result ->
-      let+ astate = result in
-      ContinueProgram astate )
-
-
+(** TODO: by right, this should check for read on the argument first. *)
 let strdup _ : model = 
   alloc_common CMalloc ~size_exp_opt:None
 
-let memset (dest_addr,dest_hist) _ _ : model =
-  fun {path; location;  ret= ret_id,_} astate ->
-  let ret_value =
-    (dest_addr, (ValueHistory.epoch))
-  in
-  let astate = PulseOperations.write_id ret_id ret_value astate in
-  PulseOperations.check_and_abduce_addr_access_isl path Write location (dest_addr,dest_hist) ~null_noop:false astate
-  |> List.map ~f:(fun result ->
+
+let c_mem_single_access_common (dest_addr, dest_hist) access_mode ~desc : model =
+  fun {path; location; ret= ret_id, _} astate ->
+    let event = Hist.call_event path location desc in
+    let updated_hist = Hist.add_event path event dest_hist in
+    let ret_val = (dest_addr, updated_hist) in
+    let astate = PulseOperations.write_id ret_id ret_val astate in
+    PulseOperations.check_and_abduce_addr_access_isl path access_mode location (dest_addr, updated_hist) ~null_noop:false astate
+    |> List.map ~f:(fun result ->
       let+ astate = result in
       ContinueProgram astate )
-    
+
+
+let strlen (dest_addr, dest_hist) : model = 
+  c_mem_single_access_common (dest_addr, dest_hist) Read ~desc:"strlen()"
+
+
+let memset (dest_addr, dest_hist) : model = 
+  c_mem_single_access_common (dest_addr, dest_hist) Write ~desc:"memset()"
+
+
+let strcpy (dest_addr, dest_hist) _ : model =
+  c_mem_single_access_common (dest_addr, dest_hist) Write ~desc:"strcpy()"
+
+
+let strncpy (dest_addr, dest_hist) (src_addr, src_hist) _ : model = 
+  strcpy (dest_addr, dest_hist) (src_addr, src_hist)
+
 
 let matchers : matcher list =
   let open ProcnameDispatcher.Call in
@@ -161,18 +134,18 @@ let matchers : matcher list =
   ; +match_regexp_opt Config.pulse_model_free_pattern <>$ capt_arg $+...$--> free
   ; +BuiltinDecl.(match_builtin malloc) <>$ capt_exp $--> malloc
   ; +match_regexp_opt Config.pulse_model_malloc_pattern <>$ capt_exp $+...$--> custom_malloc
-  ; -"calloc" <>$ capt_exp $+ capt_exp $--> calloc
   ; -"realloc" <>$ capt_arg $+ capt_exp $--> realloc
-  ; -"strncpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
-  ; -"strcpy" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
-  ; -"strchr" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
-  ; -"memcpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
-  ; -"memmove" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
-  ; -"strlen" <>$ capt_arg_payload $+...$--> strlen
-  ; -"strdup" <>$ capt_exp $--> strdup
-  ; -"memset" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> memset
   ; +match_regexp_opt Config.pulse_model_realloc_pattern
     <>$ capt_arg $+ capt_exp $+...$--> custom_realloc
+  ; -"calloc" <>$ capt_exp $+ capt_exp $--> calloc
+  ; -"strdup" <>$ capt_exp $--> strdup
+  ; -"strlen" <>$ capt_arg_payload $+...$--> strlen
+  ; -"memset" <>$ capt_arg_payload $+...$--> memset
+  ; -"strcpy" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
+  ; -"strchr" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> strcpy
+  ; -"strncpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  ; -"memcpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  ; -"memmove" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; +map_context_tenv PatternMatch.ObjectiveC.is_core_graphics_create_or_copy
     &--> custom_alloc_not_null
   ; +map_context_tenv PatternMatch.ObjectiveC.is_core_foundation_create_or_copy
