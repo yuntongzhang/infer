@@ -179,15 +179,15 @@ let report_summary_error tenv proc_desc err_log (access_error : AccessResult.sum
           astate
       in
       let error_trace = Diagnostic.get_trace diagnostic in
-      let error_trace_start = match error_trace with
-        | hd :: _ -> hd.lt_loc
-        | [] -> Location.dummy
-      in
+      let error_trace_start = Errlog.get_loc_trace_start error_trace in
+      let error_trace_end = Errlog.get_loc_trace_end error_trace in
       match LatentIssue.should_report astate diagnostic with
       | `ReportNow ->
           if is_suppressed then L.d_printfln "ReportNow suppressed error" ;
           report ~latent:false ~is_suppressed proc_desc err_log diagnostic ;
-          if Diagnostic.aborts_execution diagnostic then Some (AbortProgram {astate; error_trace_start}) else None
+          if Diagnostic.aborts_execution diagnostic then 
+            Some (AbortProgram {astate; error_trace_start; error_trace_end}) 
+          else None
       | `DelayReport latent_issue ->
           if is_suppressed then L.d_printfln "DelayReport suppressed error" ;
           if Config.pulse_report_latent_issues then

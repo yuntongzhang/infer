@@ -180,9 +180,9 @@ let apply_callee tenv ({PathContext.timestamp} as path) ~caller_proc_desc callee
           match callee_exec_state with
           | ContinueProgram _ | ExceptionRaised _ | ISLLatentMemoryError _ ->
               assert false
-          | AbortProgram {error_trace_start} ->
+          | AbortProgram {error_trace_start; error_trace_end} ->
               (* bypass the current errors to avoid compounding issues *)
-              Sat (Ok (AbortProgram {astate=astate_summary; error_trace_start}))
+              Sat (Ok (AbortProgram {astate=astate_summary; error_trace_start; error_trace_end}))
           | ExitProgram _ ->
               Sat (Ok (ExitProgram astate_summary))
           | LatentAbortProgram {latent_issue} -> (

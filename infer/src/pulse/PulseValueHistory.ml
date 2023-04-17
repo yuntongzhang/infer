@@ -312,3 +312,8 @@ let add_to_errlog ~nesting history errlog =
 let get_first_main_event hist =
   Iter.head (Iter.rev (fun f -> iter ~main_only:true hist ~f))
   |> Option.bind ~f:(function Event event -> Some event | _ -> None)
+
+
+let get_last_main_event hist =
+  Iter.head (fun f -> iter ~main_only:true hist ~f)
+  |> Option.bind ~f:(function Event event -> Some event | _ -> None)
