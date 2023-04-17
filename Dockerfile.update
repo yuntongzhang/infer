@@ -1,0 +1,11 @@
+# Update src code for Infer, in case some new code is added and we don't want to build from fresh
+
+FROM yuntongzhang/infer:v2
+
+WORKDIR /opt/infer
+RUN git stash && git checkout main && git pull origin main
+WORKDIR /opt/infer/infer/src
+RUN make BUILD_MODE=dev-noerror -j32
+
+WORKDIR /opt/infer/
+ENTRYPOINT /bin/bash
