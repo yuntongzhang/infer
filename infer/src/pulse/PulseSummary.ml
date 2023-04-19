@@ -45,16 +45,14 @@ let exec_summary_of_post_common tenv ~continue_program proc_desc err_log locatio
                {astate; diagnostic= MemoryLeak {allocator; allocation_trace; location}} )
           |> Option.value ~default:(ExecutionDomain.ContinueProgram astate) in
           let alloc_trace_start = (Trace.get_start_location allocation_trace).line in
-          let alloc_trace_end = (Trace.get_end_location allocation_trace).line in
-          real_summary, SummaryPost.ErrorMemoryLeak (alloc_trace_start, alloc_trace_end)
+          real_summary, SummaryPost.ErrorMemoryLeak (alloc_trace_start, location.line)
       | Error (`ResourceLeak (astate, class_name, allocation_trace, location)) ->
           let real_summary = PulseReport.report_summary_error tenv proc_desc err_log
             (ReportableErrorSummary
                {astate; diagnostic= ResourceLeak {class_name; allocation_trace; location}} )
           |> Option.value ~default:(ExecutionDomain.ContinueProgram astate) in
           let alloc_trace_start = (Trace.get_start_location allocation_trace).line in
-          let alloc_trace_end = (Trace.get_end_location allocation_trace).line in
-          real_summary, SummaryPost.ErrorResourceLeak (alloc_trace_start, alloc_trace_end)
+          real_summary, SummaryPost.ErrorResourceLeak (alloc_trace_start, location.line)
       | Error
           (`PotentialInvalidAccessSummary
             ((astate : AbductiveDomain.summary), address, must_be_valid) ) -> (
