@@ -8,7 +8,6 @@ type start_end_loc = int * int [@@deriving yojson_of]
 type label =
   | Ok of start_end_loc
   | ExitProgram of start_end_loc
-  | ErrorException of start_end_loc
   | ErrorRetainCycle of start_end_loc
   | ErrorMemoryLeak of start_end_loc
   | ErrorResourceLeak of start_end_loc
@@ -20,10 +19,10 @@ type label =
 [@@deriving yojson_of]
 
 
-type summary_post = (label * (AbductiveDomain.summary) option) [@@deriving yojson_of]
+type summary_post = label * (AbductiveDomain.summary) [@@deriving yojson_of]
 
 type t = summary_post list [@@deriving yojson_of]
 
 val from_lists_of_summaries : 
-  (AbductiveDomain.summary ExecutionDomain.base_t * label) option list
+  (AbductiveDomain.summary ExecutionDomain.base_t * label) list
   ->  t

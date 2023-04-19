@@ -765,7 +765,7 @@ let skipped_calls_match_pattern astate =
         astate.skipped_calls )
 
 
-let check_memory_leaks ~live_addresses ~unreachable_addresses astate =
+let check_all_memory_leaks ~live_addresses ~unreachable_addresses astate =
   let reaches_into addr addrs astate =
     AbstractValue.Set.mem addr addrs
     || BaseDomain.GraphVisit.fold_from_addresses (Seq.return addr) astate ~init:()
@@ -835,12 +835,26 @@ let check_memory_leaks ~live_addresses ~unreachable_addresses astate =
           let location = Attributes.get_unreachable_at attributes in
           Error (location, allocator, trace)
   in
-  List.fold_result unreachable_addresses ~init:() ~f:(fun () addr ->
+  let rev_results = List.fold unreachable_addresses ~init:[] ~f:(fun accum addr ->
       match AddressAttributes.find_opt addr astate with
-      | Some unreachable_attrs ->
-          check_memory_leak addr unreachable_attrs
       | None ->
-          Ok () )
+          accum
+      | Some unreachable_attrs ->
+          let res_one = check_memory_leak addr unreachable_attrs in
+          match res_one with
+          | Ok () -> accum
+          | _     -> res_one :: accum
+       )
+  (* if no leak, return []; if there is leak, return a list of them, where first one 
+     is the first checked leak. (first is also the one Infer used to report) *)
+  in List.rev rev_results
+
+
+let check_memory_leaks ~live_addresses ~unreachable_addresses astate =
+  let all_leaks = check_all_memory_leaks ~live_addresses ~unreachable_addresses astate in
+  match all_leaks with
+    | [] -> Ok ()
+    | res :: _ -> res
 
 
 (* A retain cycle is a memory path from an address to itself, following only
@@ -1379,6 +1393,81 @@ let summary_of_post tenv pdesc location astate0 =
         (`PotentialInvalidAccessSummary
           (astate, Decompiler.find address astate0.decompiler, must_be_valid) )
 
+
+(* Similar to summary_of_post, but returns a list of errors, instead of a single error. *)
+let summary_list_of_post tenv pdesc location astate0 =
+  let open SatUnsat.Import in
+  (* do not store the decompiler in the summary and make sure we only use the original one by
+      marking it invalid *)
+  let astate = {astate0 with decompiler= Decompiler.invalid} in
+  (* NOTE: we normalize (to strengthen the equality relation used by canonicalization) then
+      canonicalize *before* garbage collecting unused addresses in case we detect any last-minute
+      contradictions about addresses we are about to garbage collect *)
+  let path_condition, is_unsat, new_eqs =
+    PathCondition.is_unsat_expensive tenv
+      ~get_dynamic_type:(BaseAddressAttributes.get_dynamic_type (astate.post :> BaseDomain.t).attrs)
+      astate.path_condition
+  in
+  let* () = if is_unsat then Unsat else Sat () in
+  let astate = {astate with path_condition} in
+  let* astate, error = incorporate_new_eqs ~for_summary:true astate new_eqs in
+  let astate_before_filter = astate in
+  (* let json_astate = yojson_of_t astate_before_filter in
+  let f_json json_content =
+    Yojson.Safe.to_channel stdout json_content;
+    Out_channel.newline stdout;
+    Out_channel.flush stdout;
+  in
+  f_json json_astate; *)
+  let* astate, live_addresses, dead_addresses, new_eqs =
+    filter_for_summary tenv (Procdesc.get_proc_name pdesc) astate
+  in
+  let+ astate, error =
+    match error with
+    | None ->
+        incorporate_new_eqs ~for_summary:true astate new_eqs
+    | Some _ ->
+        Sat (astate, error)
+  in
+  (* L.debug_dev "Summary of post called on astate (before filtering) %a \n" pp astate_before_filter; *)
+  match error with
+  | None -> (
+    match
+      check_retain_cycles ~dead_addresses tenv
+        {astate_before_filter with decompiler= astate0.decompiler}
+    with
+    | Error (assignment_traces, value, path, location) ->
+        [ Error (`RetainCycle (astate, assignment_traces, value, path, location)) ]
+    | Ok () -> (
+      (* NOTE: it's important for correctness that we check leaks last because we are going to carry
+          on with the astate after the leak and we don't want to accidentally skip modifications of
+          the state because of the error monad *)
+      let leak_results = 
+        check_all_memory_leaks ~live_addresses ~unreachable_addresses:dead_addresses
+          astate_before_filter
+      in
+      match leak_results with
+      | [] -> [ Ok (invalidate_locals pdesc astate) ]
+      | _  -> ( List.map leak_results ~f:(fun leak_result ->
+        match leak_result with
+        | Ok () -> (* should not happen *)
+            Ok (invalidate_locals pdesc astate)
+        | Error (unreachable_location, Attribute.JavaResource class_name, trace) ->
+            Error
+              (`ResourceLeak
+                (astate, class_name, trace, Option.value unreachable_location ~default:location) )
+        | Error (unreachable_location, allocator, trace) ->
+            Error
+              (`MemoryLeak
+                (astate, allocator, trace, Option.value unreachable_location ~default:location) ) ) ) 
+        )
+      ) 
+  | Some (address, must_be_valid) ->
+      [ Error
+        (`PotentialInvalidAccessSummary
+          (astate, Decompiler.find address astate0.decompiler, must_be_valid) ) ]
+
+
 let get_last_line_in_trace abductive_summary =
   let trace = abductive_summary.full_trace in
   let line_num = FullTrace.get_last_loc trace in
@@ -1433,3 +1522,5 @@ module Topl = struct
 
   let get {topl} = topl
 end
+
+

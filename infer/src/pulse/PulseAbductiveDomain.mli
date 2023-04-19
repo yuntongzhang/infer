@@ -255,6 +255,22 @@ val summary_of_post :
 (** Trim the state down to just the procedure's interface (formals and globals), and simplify and
     normalize the state. *)
 
+val summary_list_of_post :
+    Tenv.t
+ -> Procdesc.t
+ -> Location.t
+ -> t
+ -> ( summary
+    , [> `ResourceLeak of summary * JavaClassName.t * Trace.t * Location.t
+      | `RetainCycle of summary * Trace.t list * Decompiler.expr * Decompiler.expr * Location.t
+      | `MemoryLeak of summary * Attribute.allocator * Trace.t * Location.t
+      | `PotentialInvalidAccessSummary of
+        summary * Decompiler.expr * (Trace.t * Invalidation.must_be_valid_reason option) ] )
+    result
+    list 
+    SatUnsat.t
+(** Same as summary_of_post. But returns a list of MemoryLeaks rather than the first one. *)
+
 val get_last_line_in_trace: summary -> int
 
 val set_post_edges : AbstractValue.t -> BaseMemory.Edges.t -> t -> t

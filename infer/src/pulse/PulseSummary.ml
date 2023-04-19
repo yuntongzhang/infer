@@ -21,15 +21,18 @@ let pp fmt pre_posts =
       F.fprintf fmt "#%d: @[%a@]@;" i ExecutionDomain.pp (pre_post :> ExecutionDomain.t) ) ;
   F.close_box ()
 
+
 (* Since error situation is decided here, also return an error label *)
 let exec_summary_of_post_common tenv ~continue_program proc_desc err_log location
-    (exec_astate : ExecutionDomain.t) : (_ ExecutionDomain.base_t * SummaryPost.label) SatUnsat.t =
+    (exec_astate : ExecutionDomain.t) : (_ ExecutionDomain.base_t * SummaryPost.label) list SatUnsat.t =
   match exec_astate with
   | ExceptionRaised _ ->
       Unsat (* we do not propagate exception interproceduraly yet *)
   | ContinueProgram astate -> (
       let open SatUnsat.Import in
-      let+ summary_result = AbductiveDomain.summary_of_post tenv proc_desc location astate in
+      let+ summary_result_list = AbductiveDomain.summary_list_of_post tenv proc_desc location astate in
+      List.map summary_result_list ~f:(fun summary_result ->
+      (* let+ summary_result = AbductiveDomain.summary_of_post tenv proc_desc location astate in *)
       match (summary_result : _ result) with
       | Ok astate ->
           continue_program astate, SummaryPost.Ok (0, 0)
@@ -87,40 +90,47 @@ let exec_summary_of_post_common tenv ~continue_program proc_desc err_log locatio
             let inval_trace_start = (Trace.get_start_location invalidation_trace).line in
             let inval_trace_end = (Trace.get_end_location invalidation_trace).line in
             real_summary, SummaryPost.InvalidAccess (inval_trace_start, inval_trace_end)) )
+      )
   (* already a summary but need to reconstruct the variants to make the type system happy :( *)
   | ExitProgram astate ->
-    Sat (ExitProgram astate, SummaryPost.ExitProgram (0, 0))
+      Sat [ (ExitProgram astate, SummaryPost.ExitProgram (0, 0)) ]
   | AbortProgram ({error_trace_start; error_trace_end} as payload) ->
-      Sat (AbortProgram payload, SummaryPost.AbortProgram (error_trace_start.line, error_trace_end.line))
+      Sat [ (AbortProgram payload, SummaryPost.AbortProgram (error_trace_start.line, error_trace_end.line)) ]
   (* TODO: labels below still have the wrong fields. *)
   | LatentAbortProgram {astate; latent_issue} ->
       let error_trace = LatentIssue.to_diagnostic latent_issue |> Diagnostic.get_trace in
       let error_trace_start = Errlog.get_loc_trace_start error_trace in
       let error_trace_end = Errlog.get_loc_trace_end error_trace in
       Sat 
-        ( LatentAbortProgram {astate; latent_issue}
-        , SummaryPost.LatentAbortProgram (error_trace_start.line, error_trace_end.line) )
+        [ ( LatentAbortProgram {astate; latent_issue}
+        , SummaryPost.LatentAbortProgram (error_trace_start.line, error_trace_end.line) ) ]
   | LatentInvalidAccess {astate; address; must_be_valid; calling_context} ->
       let valid_trace, _ = must_be_valid in
       let valid_trace_start = (Trace.get_start_location valid_trace).line in
       let valid_trace_end = (Trace.get_end_location valid_trace).line in
       Sat 
-        (LatentInvalidAccess {astate; address; must_be_valid; calling_context}
-        , SummaryPost.LatentInvalidAccess (valid_trace_start, valid_trace_end) )
+        [ (LatentInvalidAccess {astate; address; must_be_valid; calling_context}
+        , SummaryPost.LatentInvalidAccess (valid_trace_start, valid_trace_end) ) ]
   | ISLLatentMemoryError astate ->
-      Sat (ISLLatentMemoryError astate, SummaryPost.ISLLatentMemoryError (0, 0))
+      Sat [ (ISLLatentMemoryError astate, SummaryPost.ISLLatentMemoryError (0, 0)) ]
 
 
 let force_exit_program tenv proc_desc err_log post exec_state =
-  let summary_label = exec_summary_of_post_common tenv proc_desc err_log post exec_state ~continue_program:(fun astate ->
+  let summary_label_list  = exec_summary_of_post_common tenv proc_desc err_log post exec_state ~continue_program:(fun astate ->
       ExitProgram astate )
-  in match summary_label with
+  in match summary_label_list with
     | Unsat -> Unsat
-    | Sat inner -> Sat (fst inner)
+    | Sat inner_list -> 
+        (* when doing error checking, just use the first leak summary as before. *)
+        match inner_list with 
+        | [] -> Unsat
+        | hd :: _ -> Sat (fst hd)
 
 
-let write_summary_and_posts_json summary_labels =
-  let summary_posts = SummaryPost.from_lists_of_summaries summary_labels in
+let write_summary_and_posts_json (summary_labels_list : (AbductiveDomain.summary ExecutionDomain.base_t * SummaryPost.label) list
+list) =
+  let flattern_summary_labels = List.concat summary_labels_list in
+  let summary_posts = SummaryPost.from_lists_of_summaries flattern_summary_labels in
   let json_summary_posts = [%yojson_of: SummaryPost.t] summary_posts in
   let f_json json_content fname = Yojson.Safe.to_file fname json_content;
     (* Yojson.Safe.to_channel stdout json_content;
@@ -131,16 +141,22 @@ let write_summary_and_posts_json summary_labels =
 
 
 let of_posts tenv proc_desc err_log location posts =
-  let summary_labels = List.mapi posts ~f:(fun i exec_state ->
+  let summary_labels_list = List.mapi posts ~f:(fun i exec_state ->
       L.d_printfln "Creating spec out of state #%d:@\n%a" i ExecutionDomain.pp exec_state ;
       exec_summary_of_post_common tenv proc_desc err_log location exec_state
         ~continue_program:(fun astate -> ContinueProgram astate)
       |> SatUnsat.sat )
   in
-  if Config.pulse_fix_mode then write_summary_and_posts_json summary_labels ;
-  let filtered_summary_labels = List.filter_map summary_labels ~f:(fun x -> x) in
-  List.map filtered_summary_labels ~f:fst
-
+  (* Remove None entries *)
+  let summary_labels_list_filtered = List.filter_map summary_labels_list ~f:(fun x -> x) in
+  (* pass list of list for writing *)
+  if Config.pulse_fix_mode then write_summary_and_posts_json summary_labels_list_filtered ;
+  (* Here we have list of list, where one inner list is for one post. *)
+  List.concat_map summary_labels_list_filtered ~f:(fun list_of_one_post ->
+    match list_of_one_post with
+    | [] -> []
+    | (summary, _) :: _ -> [ summary ] (* take the first one - this is for leak *)
+  )
 
 (* let of_posts tenv proc_desc err_log location posts =
   List.filter_mapi posts ~f:(fun i exec_state ->
