@@ -32,7 +32,7 @@ type 'abductive_domain_t base_t =
   | ISLLatentMemoryError of AbductiveDomain.summary
 [@@deriving equal, compare, yojson_of]
 
-type t = AbductiveDomain.t base_t
+type t = AbductiveDomain.t base_t [@@deriving yojson_of]
 
 let continue astate = ContinueProgram astate
 

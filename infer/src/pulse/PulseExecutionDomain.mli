@@ -31,8 +31,9 @@ type 'abductive_domain_t base_t =
   | ISLLatentMemoryError of AbductiveDomain.summary
       (** represents the state at the program point that might cause an error; used for
           {!Config.pulse_isl} *)
+[@@deriving equal, compare, yojson_of]
 
-type t = AbductiveDomain.t base_t
+type t = AbductiveDomain.t base_t [@@deriving yojson_of]
 
 include AbstractDomain.Disjunct with type t := t
 

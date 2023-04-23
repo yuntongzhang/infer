@@ -60,6 +60,14 @@ module type S = sig
     -> Procdesc.t
     -> TransferFunctions.Domain.t option
 
+  val compute_post_and_inv_map :
+      ?do_narrowing:bool
+    -> ?pp_instr:(TransferFunctions.Domain.t -> Sil.instr -> (Format.formatter -> unit) option)
+    -> TransferFunctions.analysis_data
+    -> initial:TransferFunctions.Domain.t
+    -> Procdesc.t
+    -> (TransferFunctions.Domain.t option) * (TransferFunctions.Domain.t option list)
+
   val exec_cfg :
        ?do_narrowing:bool
     -> TransferFunctions.CFG.t
@@ -545,6 +553,27 @@ module AbstractInterpreterCommon (TransferFunctions : NodeTransferFunctions) = s
     (* L.debug_dev "Computing post for function %a\n" Procname.pp (Procdesc.get_proc_name proc_desc); *)
     let inv_map = exec_cfg_internal ~pp_instr cfg analysis_data ~do_narrowing ~initial in
     extract_post (Node.id (CFG.exit_node cfg)) inv_map
+
+  let make_compute_post_and_inv_map ~exec_cfg_internal ?(pp_instr = pp_sil_instr) analysis_data ~do_narrowing
+    ~initial proc_desc =
+    let cfg = CFG.from_pdesc proc_desc in
+    (* L.debug_dev "Computing post for function %a\n" Procname.pp (Procdesc.get_proc_name proc_desc); *)
+    let inv_map = exec_cfg_internal ~pp_instr cfg analysis_data ~do_narrowing ~initial in
+    let fix_loc_line = 39 in
+    let fix_loc_node_ids = CFG.fold_nodes cfg ~init:[] ~f:(fun accum node ->
+      let node_loc_line = (Node.loc node).line in
+      if Int.equal node_loc_line fix_loc_line then (Node.id node) :: accum
+      else accum
+    ) in
+    (* let fix_loc_nodes = List.filter (Procdesc.get_nodes (CFG.proc_desc cfg)) ~f:(fun node -> 
+        let node_loc = Procdesc.Node.get_loc node in
+        Int.equal node_loc.line fix_loc_line)
+    in 
+    let fix_loc_node_ids = List.map fix_loc_nodes ~f:Node.id in *)
+    let fix_loc_posts = List.map fix_loc_node_ids ~f:(fun id -> extract_post id inv_map) in
+    let post = extract_post (Node.id (CFG.exit_node cfg)) inv_map in
+    post, fix_loc_posts
+
 end
 
 module MakeWithScheduler
@@ -594,6 +623,8 @@ struct
   let exec_pdesc ?do_narrowing:_ = make_exec_pdesc ~exec_cfg_internal ~do_narrowing:false
 
   let compute_post ?do_narrowing:_ = make_compute_post ~exec_cfg_internal ~do_narrowing:false
+
+  let compute_post_and_inv_map ?(do_narrowing = false) = make_compute_post_and_inv_map ~exec_cfg_internal ~do_narrowing
 end
 
 module MakeRPONode (T : NodeTransferFunctions) =
@@ -718,6 +749,8 @@ module MakeWTONode (TransferFunctions : NodeTransferFunctions) = struct
   let exec_pdesc ?(do_narrowing = false) = make_exec_pdesc ~exec_cfg_internal ~do_narrowing
 
   let compute_post ?(do_narrowing = false) = make_compute_post ~exec_cfg_internal ~do_narrowing
+
+  let compute_post_and_inv_map ?(do_narrowing = false) = make_compute_post_and_inv_map ~exec_cfg_internal ~do_narrowing
 end
 
 module MakeWTO (T : TransferFunctions.SIL) = MakeWTONode (SimpleNodeTransferFunctions (T))

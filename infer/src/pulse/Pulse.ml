@@ -882,7 +882,19 @@ let analyze ({InterproceduralAnalysis.tenv; proc_desc; err_log} as analysis_data
       with_html_debug_node (Procdesc.get_start_node proc_desc) ~desc:"initial state creation"
         ~f:(fun () -> (initial tenv proc_desc, NonDisjDomain.bottom))
     in
-    match DisjunctiveAnalyzer.compute_post analysis_data ~initial proc_desc with
+    let posts, fix_loc_posts = DisjunctiveAnalyzer.compute_post_and_inv_map analysis_data ~initial proc_desc in
+    (** Dump states *)
+    if Config.pulse_fix_mode then
+      List.fold fix_loc_posts ~init:() ~f:(fun _ posts ->
+        match posts with
+        | Some (posts, non_disj_astate) -> 
+          let astates = List.map posts ~f: fst in
+          let astates_json = [%yojson_of: ExecutionDomain.t list] astates in
+          let f_json json_content fname = Yojson.Safe.to_file fname json_content in
+          f_json astates_json "fix_loc_posts.json" ;
+        | None -> ()) ;
+    (** Real function summary results *)
+    match posts with
     | Some (posts, non_disj_astate) ->
         with_html_debug_node (Procdesc.get_exit_node proc_desc) ~desc:"pulse summary creation"
           ~f:(fun () ->

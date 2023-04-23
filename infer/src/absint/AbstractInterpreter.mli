@@ -33,6 +33,14 @@ module type S = sig
     -> TransferFunctions.Domain.t option
   (** compute and return the postcondition for the given {!Procdesc.t} starting from [initial].
       [pp_instr] is used for the debug HTML and passed as a hook to handle both SIL and HIL CFGs. *)
+    
+  val compute_post_and_inv_map :
+      ?do_narrowing:bool
+   -> ?pp_instr:(TransferFunctions.Domain.t -> Sil.instr -> (Format.formatter -> unit) option)
+   -> TransferFunctions.analysis_data
+   -> initial:TransferFunctions.Domain.t
+   -> Procdesc.t
+   -> (TransferFunctions.Domain.t option) * (TransferFunctions.Domain.t option list)
 
   val exec_cfg :
        ?do_narrowing:bool
