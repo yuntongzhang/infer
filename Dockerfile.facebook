@@ -41,6 +41,13 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends
 WORKDIR /opt/
 RUN git clone https://github.com/facebook/infer.git infer
 
+# install a newer version of cmake, since Infer currently requires cmake >= 3.20
+RUN apt purge --auto-remove cmake && \
+    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
+    DEBIAN_FRONTEND=noninteractive apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'  && \
+    apt update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends cmake
+
 # really building infer
 WORKDIR /opt/infer/
 # See https://bugs.llvm.org/show_bug.cgi?id=51359 on why clang is needed instead of gcc
