@@ -1,4 +1,5 @@
 # build the current Infer tool from facebook codebase, with the latest commit
+# Environment: Ubuntu 20
 
 FROM ubuntu:20.04
 
@@ -41,7 +42,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends wget
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
 RUN DEBIAN_FRONTEND=noninteractive apt purge --yes --auto-remove cmake && \
-    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'  && \
+    apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"  && \
     apt update && \
     apt-get install --yes --no-install-recommends cmake
 
@@ -61,3 +62,8 @@ ENV CXX clang++
 RUN ./build-infer.sh -y
 # RUN ./build-infer.sh -y clang
 ENV PATH /opt/infer/infer/bin:${PATH}
+
+# install vim for convenience
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends vim
+
+ENTRYPOINT /bin/bash

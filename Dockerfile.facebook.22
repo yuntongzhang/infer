@@ -1,0 +1,59 @@
+# build the current Infer tool from facebook codebase, with the latest commit
+# Environment: Ubuntu 22
+
+FROM ubuntu:22.04
+
+# dependecies from infer dockerfile
+RUN apt-get update && \
+    mkdir -p /usr/share/man/man1 && \
+    apt-get install --yes --no-install-recommends \
+      curl \
+      libc6-dev \
+      openjdk-11-jdk-headless \
+      sqlite3 \
+      xz-utils \
+      zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# install opam
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends software-properties-common \
+        build-essential \
+        patch \
+        git \
+        gpg-agent && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends opam
+
+# install opam system-level dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
+    autoconf \
+    libgmp-dev \
+    libsqlite3-dev \
+    pkg-config \
+    automake \
+    cmake \
+    clang \
+    python3-distutils \
+    libmpfr-dev
+
+# install java, which is needed for the Infer Java analysis
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends default-jre default-jdk
+
+# get the latest source code from facebook repo
+WORKDIR /opt/
+RUN git clone https://github.com/facebook/infer.git infer
+
+# really building infer
+WORKDIR /opt/infer/
+# See https://bugs.llvm.org/show_bug.cgi?id=51359 on why clang is needed instead of gcc
+ENV CC clang
+ENV CXX clang++
+# build both C/C++ and Java analysis
+RUN ./build-infer.sh -y
+# RUN ./build-infer.sh -y clang
+ENV PATH /opt/infer/infer/bin:${PATH}
+
+# install vim for convenience
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends vim
+
+ENTRYPOINT /bin/bash
