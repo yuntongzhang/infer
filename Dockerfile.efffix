@@ -1,5 +1,7 @@
 # Infer built from source, starting from commit 7499c0354a412a5ceec8476a58c5953fcfeae2b9
 
+# Convention: tag the image built with this Dockerfile with 'efffix'
+
 FROM ubuntu:20.04
 
 # dependecies from infer dockerfile
@@ -37,7 +39,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends
     python3-distutils \
     libmpfr-dev
 
-# get release version source code
+# get the latest version source code
 WORKDIR /opt/
 RUN git clone https://github.com/yuntongzhang/infer.git infer
 
