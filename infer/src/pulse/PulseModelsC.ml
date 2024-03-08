@@ -79,7 +79,7 @@ let realloc_common allocator pointer size : model =
 let realloc = realloc_common CRealloc
 
 
-let calloc _n size = 
+let calloc _n size =
   let ikind = Typ.IUInt in
   let size_expr = Exp.BinOp (Binop.Mult (Some ikind), _n, size) in
   alloc_common CCalloc ~size_exp_opt:(Some size_expr)
@@ -90,7 +90,7 @@ let custom_realloc pointer size data astate =
 
 
 (** TODO: by right, this should check for read on the argument first. *)
-let strdup _ : model = 
+let strdup _ : model =
   alloc_common CMalloc ~size_exp_opt:None
 
 
@@ -106,11 +106,11 @@ let c_mem_single_access_common (dest_addr, dest_hist) access_mode ~desc : model 
       ContinueProgram astate )
 
 
-let strlen (dest_addr, dest_hist) : model = 
+let strlen (dest_addr, dest_hist) : model =
   c_mem_single_access_common (dest_addr, dest_hist) Read ~desc:"strlen()"
 
 
-let memset (dest_addr, dest_hist) : model = 
+let memset (dest_addr, dest_hist) : model =
   c_mem_single_access_common (dest_addr, dest_hist) Write ~desc:"memset()"
 
 
@@ -118,9 +118,14 @@ let strcpy (dest_addr, dest_hist) _ : model =
   c_mem_single_access_common (dest_addr, dest_hist) Write ~desc:"strcpy()"
 
 
-let strncpy (dest_addr, dest_hist) (src_addr, src_hist) _ : model = 
+let strncpy (dest_addr, dest_hist) (src_addr, src_hist) _ : model =
   strcpy (dest_addr, dest_hist) (src_addr, src_hist)
 
+let access_second_arg _ (addr, hist) : model =
+  c_mem_single_access_common (addr, hist) Read ~desc:"other func that uses the second arg"
+
+let access_third_arg _ _ (addr, hist) : model =
+  c_mem_single_access_common (addr, hist) Read ~desc:"other func that uses the third arg"
 
 let matchers : matcher list =
   let open ProcnameDispatcher.Call in
@@ -146,6 +151,9 @@ let matchers : matcher list =
   ; -"strncpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; -"memcpy" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
   ; -"memmove" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_exp $+...$--> strncpy
+  (** Added for detecting the UAF/DF bugs in the SAVER benchmark. *)
+  ; -"grub_xasprintf" <>$ capt_arg_payload $+ capt_arg_payload $+...$--> access_second_arg
+  ; -"LXC_ERROR" <>$ capt_arg_payload $+ capt_arg_payload $+ capt_arg_payload $+...$--> access_third_arg
   ; +map_context_tenv PatternMatch.ObjectiveC.is_core_graphics_create_or_copy
     &--> custom_alloc_not_null
   ; +map_context_tenv PatternMatch.ObjectiveC.is_core_foundation_create_or_copy
